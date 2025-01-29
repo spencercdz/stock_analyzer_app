@@ -1,4 +1,4 @@
-// main/mymodule.cpp
+// main/dcf_calculator.cpp
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -14,30 +14,24 @@ float yearly_fcf(int operating_cf, int capital_expend) {
 
 
 // Feature: Calculate Discount Rate (WACC - Weighted Avg Cost of Capital)
-float discount_rate(/"int market_cap, int total_debt, int cost_equity, int cost_debt, int tax_rate"/) {
-    //need to change the params so that it is more intuitive
-
-    float total_debt = calculate_total_debt(short_term_debt, long_term_debt);
-    float cost_equity = calculate_cost_of_equity(risk_free_rate, stock_beta, market_risk_premium);
-    float cost_debt = calculate_cost_of_debt(interest_expense, total_debt);
-    float tax_rate = calculate_tax_rate(income_tax_expense, pre_tax_income);
+float discount_rate(float market_cap, float total_debt, float cost_equity, float cost_debt, float tax_rate) {
 
     return (static_cast<float>(market_cap) / (market_cap + total_debt) * cost_equity) + (static_cast<float>(total_debt) / (market_cap + total_debt) * cost_debt * (1 - tax_rate));
 }
 
-float calculate_total_debt(int short_term_debt, int long_term_debt) {
+float calculate_total_debt(float short_term_debt, float long_term_debt) {
     return short_term_debt + long_term_debt;
 }
 
-float calculate_cost_of_equity(int risk_free_rate, int stock_beta, int market_risk_premium) {
+float calculate_cost_of_equity(float risk_free_rate, float stock_beta, float market_risk_premium) {
     return risk_free_rate + stock_beta * (market_risk_premium);
 }
 
-float calculate_cost_of_debt(int interest_expense, int total_debt) {
+float calculate_cost_of_debt(float interest_expense, float total_debt) {
     return static_cast<float>(interest_expense) / total_debt;
 }
 
-float calculate_tax_rate(int income_tax_expense, int pre_tax_income) {
+float calculate_tax_rate(float income_tax_expense, float pre_tax_income) {
     return static_cast<float>(income_tax_expense) / pre_tax_income;
 }
 
@@ -96,4 +90,19 @@ float calculate_pv(float year_fcf, float wacc, float year) { //Calculate Present
 // Feature: Calculate Intrinsic Value Per Share
 float calculate_intrinsic_value(float equity_value, int shares_outstanding) {
     return equity_value / shares_outstanding; // instrinc value = equity_value / shares_outstanding
+}
+
+PYBIND11_MODULE(dcf_calculator, m) {
+    m.def("yearly_fcf", &yearly_fcf, "Feature: calculate yearly FCF for my main.py. Usage: float yearly_fcf(int operating_cf, int capital_expend)");
+    m.def("discount_rate", &discount_rate, "Feature: Calculate Discount Rate/WACC: Usage: float discount_rate(float market_cap, float total_debt, float cost_equity, float cost_debt, float tax_rate)");
+    m.def("calculate_total_debt", &calculate_total_debt, "Usage: float calculate_total_debt(float short_term_debt, float long_term_debt))");
+    m.def("calculate_cost_of_equity", &calculate_cost_of_equity, "Usage: float calculate_cost_of_equity(float risk_free_rate, float stock_beta, float market_risk_premium)");
+    m.def("calculate_cost_of_debt", &calculate_cost_of_debt, "Usage: float calculate_cost_of_debt(float interest_expense, float total_debt)");
+    m.def("calculate_tax_rate", &calculate_tax_rate, "Usage: float calculate_tax_rate(float income_tax_expense, float pre_tax_income)");
+    m.def("calculate_cagr", &calculate_cagr, "Feature: Calculate Growth Rate of FCF, will be using historical growth rate CAGR as the method. Usage: float calculate_cagr(const std::vector<int>& fcf_list)");
+    m.def("estimate_future_fcf", &estimate_future_fcf, "Feature: Estimate Future FCF using cagr, estimate for next 5 years only. Usage: std::vector<float> estimate_future_fcf(const std::vector<int>& fcf_list)");
+    m.def("calculate_equity_value", &calculate_equity_value, "Feature: Calculate Equity Value. Usage: float calculate_equity_value(const std::vector<float>& future_fcf_list, float wacc, float cagr, float net_debt)");
+    m.def("calculate_tv", &calculate_tv, "Usage: float calculate_tv(const std::vector<float>& future_fcf_list, float wacc, float cagr)");
+    m.def("calculate_pv", &calculate_pv, "Usage: float calculate_pv(float year_fcf, float wacc, float year)");
+    m.def("calculate_intrinsic_value", &calculate_intrinsic_value, "// Feature: Calculate Intrinsic Value Per Share. Usage: float calculate_intrinsic_value(float equity_value, int shares_outstanding)");
 }

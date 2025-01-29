@@ -4,7 +4,7 @@ import os
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-#import dcf_calculator (have not set up module yet)
+import dcf_calculator as dcf
 
 app = Flask(__name__)
 app.secret_key = 'owadio'
