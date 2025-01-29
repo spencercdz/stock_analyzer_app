@@ -8,10 +8,9 @@
 namespace py = pybind11;
 
 // Feature: calculate yearly FCF for my main.py
-float yearly_fcf(int operating_cf, int capital_expend) {
+float yearly_fcf(float operating_cf, float capital_expend) {
     return (operating_cf - capital_expend);
 }
-
 
 // Feature: Calculate Discount Rate (WACC - Weighted Avg Cost of Capital)
 float discount_rate(float market_cap, float total_debt, float cost_equity, float cost_debt, float tax_rate) {
@@ -40,9 +39,9 @@ float calculate_tax_rate(float income_tax_expense, float pre_tax_income) {
 float calculate_cagr(const std::vector<int>& fcf_list) {
     float latest_fcf = static_cast<float>(fcf_list.at(0)); // get my latest FCF
     float earliest_fcf = static_cast<float>(fcf_list.back()); // get my earliest fcf
-    int years = fcf_list.size(); // get my length of list to be my years
-
-    return std::pow(latest_fcf / earliest_fcf, 1.0f / (years - 1)) - 1.0f; // compute (end_fcf / start_fcf) to power of (1 / years) - 1 to get cagr
+    size_t num_years = fcf_list.size(); // get my length of list to be my years
+    float exponent = 1.0f / (num_years - 1);
+    return std::pow(latest_fcf / earliest_fcf, exponent) - 1.0f; // compute (end_fcf / start_fcf) to power of (1 / years) - 1 to get cagr
 }
 
 
@@ -61,21 +60,6 @@ std::vector<float> estimate_future_fcf(const std::vector<int>& fcf_list) {
     return future_fcf_list;
 }
 
-
-// Feature: Calculate Equity Value
-float calculate_equity_value(const std::vector<float>& future_fcf_list, float wacc, float cagr, float net_debt) {
-    float tv = calculate_tv(future_fcf_list, wacc, cagr); // calculate tv
-    float discounted_tv = calculate_pv(tv, wacc, future_fcf_list.size());
-    float sum_of_discounted_pv = 0; // calculate sum of pv
-
-    for (size_t i = 0; i < future_fcf_list.size(); ++i) {
-        sum_of_discounted_pv += calculate_pv(future_fcf_list[i], wacc, (i + 1));
-    }
-
-    float enterprise_value = sum_of_discounted_pv + discounted_tv; // enterprise_value = sum of pv of fcfs + pv of tv
-    return (enterprise_value - net_debt); // equity value = enterprise_value - net debt
-}
-
 float calculate_tv(const std::vector<float>& future_fcf_list, float wacc, float cagr) { //Calculate Terminal Value (TV)
     float last_future_fcf = future_fcf_list.back(); // get last projected FCF (for 5 yearz)
 
@@ -86,6 +70,19 @@ float calculate_pv(float year_fcf, float wacc, float year) { //Calculate Present
     return year_fcf / (std::pow((1 + wacc), (year)));
 }
 
+// Feature: Calculate Equity Value
+float calculate_equity_value(const std::vector<float>& future_fcf_list, float wacc, float cagr, float net_debt) {
+    float tv = calculate_tv(future_fcf_list, wacc, cagr); // calculate tv
+    float discounted_tv = calculate_pv(tv, wacc, static_cast<float>(future_fcf_list.size()));
+    float sum_of_discounted_pv = 0; // calculate sum of pv
+
+    for (size_t i = 0; i < future_fcf_list.size(); ++i) {
+        sum_of_discounted_pv += calculate_pv(future_fcf_list[i], wacc, static_cast<float>(i + 1));
+    }
+
+    float enterprise_value = sum_of_discounted_pv + discounted_tv; // enterprise_value = sum of pv of fcfs + pv of tv
+    return (enterprise_value - net_debt); // equity value = enterprise_value - net debt
+}
 
 // Feature: Calculate Intrinsic Value Per Share
 float calculate_intrinsic_value(float equity_value, int shares_outstanding) {
