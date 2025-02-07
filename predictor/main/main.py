@@ -66,21 +66,27 @@ def filter_stock_financials(ticker: str, filtered_stock_info: dict):
         'CapitalExpenditure': 'capex',
         'ChangeInWorkingCapital': 'change_in_working_capital'
     }
+
     # add in income statement variables
     income_statement = ticker.get_income_stmt(as_dict=True, freq='yearly')
     income_statement_key = next(iter(income_statement))
+    print(income_statement[income_statement_key])
     results = {value: income_statement[income_statement_key][key] for key, value in keys_income_statement.items() if key in income_statement[income_statement_key]}
+
     # add in balance_sheet variables
     balance_sheet = ticker.get_balance_sheet(as_dict=True, freq='yearly')
     balance_sheet_key = next(iter(balance_sheet))
     results.update({value: balance_sheet[balance_sheet_key][key] for key, value in keys_balance_sheet.items() if key in balance_sheet[balance_sheet_key]})
+
     # add in cash_flow variables
     cash_flow = ticker.get_cashflow(as_dict=True, freq='yearly')
     cash_flow_key = next(iter(cash_flow))
     results.update({value: cash_flow[cash_flow_key][key] for key, value in keys_cash_flow.items() if key in cash_flow[cash_flow_key]})
+
     # add in stock info
     results['market_cap'] = filtered_stock_info['Market Cap']
     results['beta'] = filtered_stock_info['Beta']
+
     # perform and add some calculations
     results['cost_of_equity'] = dcf.calculate_cost_of_equity((4.0/100), results['beta'], (9.5/100)) # rfr = 4, mr = 9.5. for now we fix the Treasury Rate and Market Return, have to make a separate scraper to get these values for the specific country the company is in
     results['cost_of_debt'] = dcf.calculate_cost_of_debt(results['interest_expense'], results['total_debt'])
@@ -98,29 +104,69 @@ def filter_stock_financials(ticker: str, filtered_stock_info: dict):
 
 def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):#
     market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
-    
-    # CALCUALTE GROWTH RATE G
-    ebit, invested_capital, capex, change_in_working_capital = data_source['ebit'], data_source['invested_capital'], data_source['capex'], data_source['change_in_working_capital']
-    g = ((ebit * (1 - tax_rate)) / invested_capital) * ((capex + change_in_working_capital) / (ebit * (1 - tax_rate)))
-    print(f"g = {g}")
-
-    # calculate industry growth rate
-    industry_growth_rate = 0.05 # fix it for now, later we can scrape it out no worries
 
     # Calculate growth rates from FCF list
     fcf_list = list(fcf_list.values())
     future_fcf_list = dcf.estimate_future_fcf(fcf_list)
+
+    # lets estimate our chosen growth rate
+    chosen_growth_rate = estimate_growth_rate(data_source, fcf_list)
+
+    # Calculate WACC
     wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
-    cagr = dcf.calculate_cagr(fcf_list)
-    chosen_growth_rate = estimate_growth_rate(fcf_list, cagr, g, industry_growth_rate, wacc)
+
     equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, chosen_growth_rate, net_debt)
     intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
+    print(chosen_growth_rate)
+    print(wacc)
     print(intrinsic_value)
     return intrinsic_value
 
-def estimate_growth_rate(fcf_list, cagr, g, industry_growth_rate, wacc):
-    return wacc - 0.02
+def estimate_growth_rate(data_source: dict, fcf_list):
+    """
+    Estimates a Growth Rate between the Calculated CAGR, Calculated Reinvestment x ROIC, or Long-Term Industry Growth Rate for the particular company
 
+    First, get all 3 rates. Then 
+    """
+    # Load Data
+    market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
+    ebit, invested_capital, capex, change_in_working_capital = data_source['ebit'], data_source['invested_capital'], data_source['capex'], data_source['change_in_working_capital']
+
+    # estimate CAGR using dcf.calculator.cpp
+    estimated_cagr = dcf.calculate_cagr(fcf_list)
+
+    # estimate Reinvestment x ROIC using dcf.calculator.cpp
+    estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(ebit, tax_rate, invested_capital, capex, change_in_working_capital)
+
+    # estimate industry return
+    estimated_industry_rate = 0.05 # need to change to scraping my json data
+
+    # calculate wacc for comparison with growth rates
+    wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
+
+    # calculate mean, median and std for testing
+    rates_list = [estimated_cagr, estimated_reinvestment_x_roic, estimated_industry_rate]
+    rates_mean, rates_median, rates_std = np.mean(rates_list), np.median(rates_list), np.std(rates_list)
+    
+    # Filter out extreme outliers
+    filtered_rates_list = [
+        rate for rate in rates_list 
+        if abs(rate - rates_mean) < (2 * rates_std)  # Remove rates that deviate more than 2 std devs
+    ]
+    
+    # Ensure the filtered list isn't empty, and that the rates are smaller than WACC. Otherwise, use a fallback rate that is below WACC (e.g., 3% or WACC - a small buffer)
+    if not filtered_rates_list:
+        fallback_rate = max(wacc - 0.015, 0.03)
+        return fallback_rate
+    
+    # Use median since there is likely variability in growth rates, as it is more robust to outliers
+    estimated_growth_rate = np.median(filtered_rates_list)
+    
+    # If the chosen growth rate is still lower than WACC, adjust WACC (safeguard)
+    if estimated_growth_rate < wacc:
+        estimated_growth_rate = max(estimated_growth_rate, wacc - 0.015)
+    
+    return estimated_growth_rate
 
 def scrape_stock_price(ticker: str):
     # stock_data.history(period="5y")

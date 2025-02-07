@@ -44,6 +44,11 @@ double calculate_cagr(const std::vector<double>& fcf_list) {
     return std::pow(latest_fcf / earliest_fcf, exponent) - 1.0f; // compute (end_fcf / start_fcf) to power of (1 / years) - 1 to get cagr
 }
 
+// Feature: Calculate Growth Rate using Reinvestment x ROIC
+double calculate_reinvestment_x_roic(double ebit, double tax_rate, double invested_capital, double capex, double change_in_working_capital) {
+    double g = ((ebit * (1 - tax_rate)) / invested_capital) * ((capex + change_in_working_capital) / (ebit * (1 - tax_rate)));
+    return g;
+}
 
 // Feature: Estimate Future FCF using cagr, estimate for next 5 years only
 std::vector<double> estimate_future_fcf(const std::vector<double>& fcf_list) {
@@ -60,10 +65,10 @@ std::vector<double> estimate_future_fcf(const std::vector<double>& fcf_list) {
     return future_fcf_list;
 }
 
-double calculate_tv(const std::vector<double>& future_fcf_list, double wacc, double cagr) { //Calculate Terminal Value (TV)
+double calculate_tv(const std::vector<double>& future_fcf_list, double wacc, double growth_rate) { //Calculate Terminal Value (TV)
     double last_future_fcf = future_fcf_list.back(); // get last projected FCF (for 5 yearz)
 
-    return (last_future_fcf * (1 + cagr)) / (wacc - cagr); // now just apply (last_fcf * (1 + cagr)) / (wacc - cagr) to get TV
+    return (last_future_fcf * (1 + growth_rate)) / (wacc - growth_rate); // now just apply (last_fcf * (1 + cagr)) / (wacc - cagr) to get TV
 }
 
 double calculate_pv(double year_fcf, double wacc, double year) { //Calculate Present Value (PV)
@@ -71,8 +76,8 @@ double calculate_pv(double year_fcf, double wacc, double year) { //Calculate Pre
 }
 
 // Feature: Calculate Equity Value
-double calculate_equity_value(const std::vector<double>& future_fcf_list, double wacc, double cagr, double net_debt) {
-    double tv = calculate_tv(future_fcf_list, wacc, cagr); // calculate tv
+double calculate_equity_value(const std::vector<double>& future_fcf_list, double wacc, double growth_rate, double net_debt) {
+    double tv = calculate_tv(future_fcf_list, wacc, growth_rate); // calculate tv
     double discounted_tv = calculate_pv(tv, wacc, static_cast<double>(future_fcf_list.size()));
     double sum_of_discounted_pv = 0; // calculate sum of pv
 
@@ -97,6 +102,7 @@ PYBIND11_MODULE(dcf_calculator, m) {
     m.def("calculate_cost_of_debt", &calculate_cost_of_debt, "Usage: double calculate_cost_of_debt(double interest_expense, double total_debt)");
     m.def("calculate_tax_rate", &calculate_tax_rate, "Usage: double calculate_tax_rate(double income_tax_expense, double pre_tax_income)");
     m.def("calculate_cagr", &calculate_cagr, "Feature: Calculate Growth Rate of FCF, will be using historical growth rate CAGR as the method. Usage: double calculate_cagr(const std::vector<int>& fcf_list)");
+    m.def("calculate_reinvestment_x_roic", &calculate_reinvestment_x_roic, "Feature: Calculate Growth Rate using Reinvestment x ROIC. Usage: double calculate_reinvestment_x_roic(double ebit, double tax_rate, double invested_capital, double capex, double change_in_working_capital)");
     m.def("estimate_future_fcf", &estimate_future_fcf, "Feature: Estimate Future FCF using cagr, estimate for next 5 years only. Usage: std::vector<double> estimate_future_fcf(const std::vector<int>& fcf_list)");
     m.def("calculate_equity_value", &calculate_equity_value, "Feature: Calculate Equity Value. Usage: double calculate_equity_value(const std::vector<double>& future_fcf_list, double wacc, double cagr, double net_debt)");
     m.def("calculate_tv", &calculate_tv, "Usage: double calculate_tv(const std::vector<double>& future_fcf_list, double wacc, double cagr)");

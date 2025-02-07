@@ -1,0 +1,495 @@
+{
+  "countries": {
+    "United States": {
+      "10y_treasury_rate": 4.4970,
+      "benchmark_etf": "SPY",
+      "benchmark_etf_return": 7.5
+    },
+    "United Kingdom": {
+      "10y_treasury_rate": 4.5000,
+      "benchmark_etf": "EWU",
+      "benchmark_etf_return": 6.0
+    },
+    "Japan": {
+      "10y_treasury_rate": 1.3030,
+      "benchmark_etf": "EWJ",
+      "benchmark_etf_return": 4.5
+    },
+    "Australia": {
+      "10y_treasury_rate": 4.4480,
+      "benchmark_etf": "EWA",
+      "benchmark_etf_return": 6.2
+    },
+    "Germany": {
+      "10y_treasury_rate": 2.3915,
+      "benchmark_etf": "EWG",
+      "benchmark_etf_return": 5.8
+    },
+    "Brazil": {
+      "10y_treasury_rate": 14.8100,
+      "benchmark_etf": "EWZ",
+      "benchmark_etf_return": 8.0
+    },
+    "Russia": {
+      "10y_treasury_rate": 16.3600,
+      "benchmark_etf": "ERUS",
+      "benchmark_etf_return": 7.0
+    },
+    "India": {
+      "10y_treasury_rate": 6.7540,
+      "benchmark_etf": "INDA",
+      "benchmark_etf_return": 9.0
+    },
+    "Canada": {
+      "10y_treasury_rate": 3.0710,
+      "benchmark_etf": "EWC",
+      "benchmark_etf_return": 6.5
+    },
+    "Italy": {
+      "10y_treasury_rate": 3.4660,
+      "benchmark_etf": "EWI",
+      "benchmark_etf_return": 5.0
+    },
+    "South Africa": {
+      "10y_treasury_rate": 10.6850,
+      "benchmark_etf": "EZA",
+      "benchmark_etf_return": 7.2
+    },
+    "Switzerland": {
+      "10y_treasury_rate": 0.3700,
+      "benchmark_etf": "EWL",
+      "benchmark_etf_return": 5.5
+    },
+    "Mexico": {
+      "10y_treasury_rate": 10.1670,
+      "benchmark_etf": "EWW",
+      "benchmark_etf_return": 6.8
+    },
+    "Netherlands": {
+      "10y_treasury_rate": 2.5770,
+      "benchmark_etf": "EWN",
+      "benchmark_etf_return": 6.0
+    },
+    "New Zealand": {
+      "10y_treasury_rate": 4.4800,
+      "benchmark_etf": "ENZL",
+      "benchmark_etf_return": 6.3
+    },
+    "Portugal": {
+      "10y_treasury_rate": 2.8990,
+      "benchmark_etf": "PGAL",
+      "benchmark_etf_return": 5.2
+    },
+    "South Korea": {
+      "10y_treasury_rate": 2.8400,
+      "benchmark_etf": "EWY",
+      "benchmark_etf_return": 6.7
+    },
+    "Spain": {
+      "10y_treasury_rate": 3.0550,
+      "benchmark_etf": "EWP",
+      "benchmark_etf_return": 5.5
+    },
+    "Greece": {
+      "10y_treasury_rate": 3.2310,
+      "benchmark_etf": "GREK",
+      "benchmark_etf_return": 6.0
+    },
+    "Turkey": {
+      "10y_treasury_rate": 26.0000,
+      "benchmark_etf": "TUR",
+      "benchmark_etf_return": 8.5
+    },
+    "China": {
+      "10y_treasury_rate": 1.6060,
+      "benchmark_etf": "FXI",
+      "benchmark_etf_return": 7.8
+    },
+    "Singapore": {
+      "10y_treasury_rate": 2.8630,
+      "benchmark_etf": "EWS",
+      "benchmark_etf_return": 6.4
+    },
+    "Taiwan": {
+      "10y_treasury_rate": 1.5450,
+      "benchmark_etf": "EWT",
+      "benchmark_etf_return": 7.0
+    },
+    "France": {
+      "10y_treasury_rate": 2.7000,
+      "benchmark_etf": "EWQ",
+      "benchmark_etf_return": 5.7
+    },
+    "Sweden": {
+      "10y_treasury_rate": 2.2000,
+      "benchmark_etf": "EWD",
+      "benchmark_etf_return": 6.1
+    },
+    "Norway": {
+      "10y_treasury_rate": 2.8000,
+      "benchmark_etf": "ENOR",
+      "benchmark_etf_return": 6.0
+    },
+    "Hong Kong": {
+      "10y_treasury_rate": 1.8000,
+      "benchmark_etf": "EWH",
+      "benchmark_etf_return": 6.5
+    },
+    "Indonesia": {
+      "10y_treasury_rate": 7.0000,
+      "benchmark_etf": "EIDO",
+      "benchmark_etf_return": 7.5
+    },
+    "Thailand": {
+      "10y_treasury_rate": 2.5000,
+      "benchmark_etf": "THD",
+      "benchmark_etf_return": 6.8
+    },
+    "Malaysia": {
+      "10y_treasury_rate": 3.0000,
+      "benchmark_etf": "EWM",
+      "benchmark_etf_return": 6.2
+    },
+    "Argentina": {
+      "10y_treasury_rate": 50.0000,
+      "benchmark_etf": "ARGT",
+      "benchmark_etf_return": 10.0
+    },
+    "Chile": {
+      "10y_treasury_rate": 5.0000,
+      "benchmark_etf": "ECH",
+      "benchmark_etf_return": 7.0
+    },
+    "Colombia": {
+      "10y_treasury_rate": 7.5000,
+      "benchmark_etf": "GXG",
+      "benchmark_etf_return": 7.2
+    },
+    "Peru": {
+      "10y_treasury_rate": 6.0000,
+      "benchmark_etf": "EPU",
+      "benchmark_etf_return": 6.5
+    },
+    "Philippines": {
+      "10y_treasury_rate": 4.5000,
+      "benchmark_etf": "EPHE",
+      "benchmark_etf_return": 6.8
+    },
+    "Vietnam": {
+      "10y_treasury_rate": 3.5000,
+      "benchmark_etf": "VNM",
+      "benchmark_etf_return": 7.5
+    },
+    "Poland": {
+      "10y_treasury_rate": 3.0000,
+      "benchmark_etf": "EPOL",
+      "benchmark_etf_return": 6.0
+    },
+    "Czech Republic": {
+      "10y_treasury_rate": 2.5000,
+      "benchmark_etf": "CZR",
+      "benchmark_etf_return": 5.8
+    },
+    "Hungary": {
+      "10y_treasury_rate": 4.0000,
+      "benchmark_etf": "EWH",
+      "benchmark_etf_return": 6.2
+    },
+    "Israel": {
+      "10y_treasury_rate": 2.0000,
+      "benchmark_etf": "EIS",
+      "benchmark_etf_return": 6.5
+    },
+    "Saudi Arabia": {
+      "10y_treasury_rate": 3.5000,
+      "benchmark_etf": "KSA",
+      "benchmark_etf_return": 7.0
+    },
+    "United Arab Emirates": {
+      "10y_treasury_rate": 2.8000,
+      "benchmark_etf": "UAE",
+      "benchmark_etf_return": 6.5
+    },
+    "Qatar": {
+      "10y_treasury_rate": 3.0000,
+      "benchmark_etf": "QAT",
+      "benchmark_etf_return": 6.8
+    },
+    "Kuwait": {
+      "10y_treasury_rate": 2.7000,
+      "benchmark_etf": "KUW",
+      "benchmark_etf_return": 6.5
+    },
+    "Egypt": {
+      "10y_treasury_rate": 10.0000,
+      "benchmark_etf": "EGPT",
+      "benchmark_etf_return": 8.0
+    },
+    "Nigeria": {
+      "10y_treasury_rate": 12.0000,
+      "benchmark_etf": "NGE",
+      "benchmark_etf_return": 8.5
+    },
+    "Kenya": {
+      "10y_treasury_rate": 9.0000,
+      "benchmark_etf": "KE",
+      "benchmark_etf_return": 7.5
+    },
+    "Morocco": {
+      "10y_treasury_rate": 3.5000,
+      "benchmark_etf": "MOR",
+      "benchmark_etf_return": 6.0
+    },
+    "Pakistan": {
+      "10y_treasury_rate": 10.5000,
+      "benchmark_etf": "PAK",
+      "benchmark_etf_return": 7.8
+    },
+    "Bangladesh": {
+      "10y_treasury_rate": 6.0000,
+      "benchmark_etf": "BANG",
+      "benchmark_etf_return": 7.0
+    },
+    "Sri Lanka": {
+      "10y_treasury_rate": 8.0000,
+      "benchmark_etf": "SRI",
+      "benchmark_etf_return": 7.2
+    },
+    "Iceland": {
+      "10y_treasury_rate": 2.0000,
+      "benchmark_etf": "ICE",
+      "benchmark_etf_return": 5.5
+    },
+    "Ireland": {
+      "10y_treasury_rate": 0.5000,
+      "benchmark_etf": "EIRL",
+      "benchmark_etf_return": 6.0
+    },
+    "Belgium": {
+      "10y_treasury_rate": 1.5000,
+      "benchmark_etf": "EWK",
+      "benchmark_etf_return": 5.8
+    },
+    "Austria": {
+      "10y_treasury_rate": 1.2000,
+      "benchmark_etf": "EWO",
+      "benchmark_etf_return": 5.5
+    },
+    "Denmark": {
+      "10y_treasury_rate": 0.8000,
+      "benchmark_etf": "EDEN",
+      "benchmark_etf_return": 5.2
+    },
+    "Finland": {
+      "10y_treasury_rate": 1.0000,
+      "benchmark_etf": "EFNL",
+      "benchmark_etf_return": 5.5
+    }
+  },
+  "industries": {
+    "Aerospace & Defense": {
+      "growth_rate": 5.0
+    },
+    "Agriculture": {
+      "growth_rate": 3.5
+    },
+    "Airlines": {
+      "growth_rate": 4.0
+    },
+    "Alcoholic Beverages": {
+      "growth_rate": 4.2
+    },
+    "Apparel & Fashion": {
+      "growth_rate": 5.5
+    },
+    "Automotive": {
+      "growth_rate": 4.8
+    },
+    "Banking": {
+      "growth_rate": 5.0
+    },
+    "Biotechnology": {
+      "growth_rate": 7.5
+    },
+    "Broadcasting": {
+      "growth_rate": 4.0
+    },
+    "Building Materials": {
+      "growth_rate": 4.5
+    },
+    "Chemicals": {
+      "growth_rate": 4.2
+    },
+    "Computer Hardware": {
+      "growth_rate": 6.0
+    },
+    "Construction": {
+      "growth_rate": 4.0
+    },
+    "Consulting": {
+      "growth_rate": 5.5
+    },
+    "Consumer Electronics": {
+      "growth_rate": 6.5
+    },
+    "Cosmetics": {
+      "growth_rate": 5.8
+    },
+    "Defense Contractors": {
+      "growth_rate": 5.0
+    },
+    "E-commerce": {
+      "growth_rate": 10.0
+    },
+    "Education": {
+      "growth_rate": 5.5
+    },
+    "Electric Utilities": {
+      "growth_rate": 3.5
+    },
+    "Electronics Manufacturing": {
+      "growth_rate": 6.0
+    },
+    "Energy Equipment & Services": {
+      "growth_rate": 4.0
+    },
+    "Entertainment": {
+      "growth_rate": 6.0
+    },
+    "Environmental Services": {
+      "growth_rate": 5.8
+    },
+    "Farming": {
+      "growth_rate": 3.5
+    },
+    "Financial Services": {
+      "growth_rate": 5.2
+    },
+    "Food & Beverage": {
+      "growth_rate": 4.5
+    },
+    "Food Processing": {
+      "growth_rate": 4.0
+    },
+    "Forestry": {
+      "growth_rate": 3.0
+    },
+    "Gaming": {
+      "growth_rate": 9.0
+    },
+    "Healthcare Equipment": {
+      "growth_rate": 6.5
+    },
+    "Healthcare Services": {
+      "growth_rate": 6.0
+    },
+    "Heavy Machinery": {
+      "growth_rate": 4.5
+    },
+    "Hospitality": {
+      "growth_rate": 5.0
+    },
+    "Industrial Automation": {
+      "growth_rate": 6.0
+    },
+    "Insurance": {
+      "growth_rate": 4.8
+    },
+    "Internet Services": {
+      "growth_rate": 8.5
+    },
+    "Investment Banking": {
+      "growth_rate": 5.5
+    },
+    "Legal Services": {
+      "growth_rate": 4.0
+    },
+    "Logistics": {
+      "growth_rate": 5.5
+    },
+    "Luxury Goods": {
+      "growth_rate": 6.0
+    },
+    "Marine Transportation": {
+      "growth_rate": 4.5
+    },
+    "Media": {
+      "growth_rate": 6.2
+    },
+    "Medical Devices": {
+      "growth_rate": 7.0
+    },
+    "Mining": {
+      "growth_rate": 4.0
+    },
+    "Non-Alcoholic Beverages": {
+      "growth_rate": 4.5
+    },
+    "Oil & Gas": {
+      "growth_rate": 3.5
+    },
+    "Packaging": {
+      "growth_rate": 4.0
+    },
+    "Pharmaceuticals": {
+      "growth_rate": 6.5
+    },
+    "Plant-Based Foods": {
+      "growth_rate": 8.0
+    },
+    "Real Estate Development": {
+      "growth_rate": 4.2
+    },
+    "Renewable Energy": {
+      "growth_rate": 7.0
+    },
+    "Retail": {
+      "growth_rate": 5.0
+    },
+    "Semiconductors": {
+      "growth_rate": 10.5
+    },
+    "Shipbuilding": {
+      "growth_rate": 4.0
+    },
+    "Software": {
+      "growth_rate": 11.0
+    },
+    "Space Exploration": {
+      "growth_rate": 12.0
+    },
+    "Sports": {
+      "growth_rate": 6.0
+    },
+    "Telecommunications": {
+      "growth_rate": 4.0
+    },
+    "Textiles": {
+      "growth_rate": 4.5
+    },
+    "Tobacco": {
+      "growth_rate": 3.0
+    },
+    "Tourism": {
+      "growth_rate": 5.5
+    },
+    "Transportation": {
+      "growth_rate": 5.2
+    },
+    "Utilities": {
+      "growth_rate": 3.0
+    },
+    "Waste Management": {
+      "growth_rate": 4.5
+    },
+    "Water Utilities": {
+      "growth_rate": 3.8
+    },
+    "Wind Energy": {
+      "growth_rate": 7.5
+    },
+    "Wireless Communications": {
+      "growth_rate": 6.0
+    }
+  }
+}
