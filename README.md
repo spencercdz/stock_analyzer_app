@@ -1,6 +1,6 @@
 # Spencer's Stock Analyzer (Work in Progress)
 
-Welcome to the Spencer's Stock Analyzer repository! This project aims to provide a comprehensive tool for analyzing stocks by determining their intrinsic value using **Discounted Cash Flow (DCF) modeling** and historical growth metrics. While still under development, the project already offers several powerful features and promises more enhancements in the near future.
+Welcome to the my Stock Analyzer repository! This project aims to provide a comprehensive tool for analyzing stocks by determining their intrinsic value using **Discounted Cash Flow (DCF) modeling** and historical growth metrics. While still under development, the project already offers several powerful features and promises more enhancements in the near future.
 
 ## Key Features
 
