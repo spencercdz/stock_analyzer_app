@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import './App.css';
 
 function App() {
   const [ticker, setTicker] = useState("");
@@ -15,16 +16,32 @@ function App() {
   };
 
   return (
-    <div class='center'>
-      <h1 class="App-header">Spencer's Stock Analysis</h1>
-      <input
-        type="text"
-        placeholder="Enter stock ticker"
-        value={ticker}
-        onChange={(e) => setTicker(e.target.value)}
-      />
-      <button onClick={fetchStockData}>Fetch Stock Data</button>
-      {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
+    <div className="container">
+      <div className="grid-container">
+        <div className='box'>
+          <h1>Spencer's Stock Analysis</h1>
+          <input
+            type="text"
+            placeholder="Enter stock ticker"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+          />
+          <button onClick={fetchStockData}>Fetch Stock Data</button>
+          {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
+        </div>
+        <div className='box'>
+          <h1>Ticker Information</h1>
+          {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
+        </div>
+        <div className='box'>
+          <h1>Valuation Summary</h1>
+          {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
+        </div>
+        <div className='box'>
+          <h1>Stock Price</h1>
+          {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
+        </div>
+      </div>
     </div>
   );
 }
