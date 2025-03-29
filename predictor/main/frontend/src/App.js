@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import './App.css';
+import GridLayout from './components/GridLayout';
+import Box from './components/Box';
 
 function App() {
   const [ticker, setTicker] = useState("");
@@ -7,7 +9,7 @@ function App() {
 
   const fetchStockData = async () => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/stock/${ticker}`);
+      const response = await fetch(`/api/stock/${ticker}`);
       const data = await response.json();
       setStockData(data);
     } catch (error) {
@@ -16,32 +18,40 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <div className="grid-container">
-        <div className='box'>
-          <h1>Spencer's Stock Analysis</h1>
-          <input
-            type="text"
-            placeholder="Enter stock ticker"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-          />
-          <button onClick={fetchStockData}>Fetch Stock Data</button>
+    <div className="App">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="video-background"
+        onError={(e) => console.error("Error loading video:", e)}
+      >
+        <source src="/background.mp4" type="video/mp4" />
+        Your browser does not support the video tag or the video file is missing.
+      </video>
+      <GridLayout>
+        <Box title="Spencer's Stock Analysis">
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Enter stock ticker"
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value)}
+            />
+            <button onClick={fetchStockData}>Search</button>
+          </div>
+        </Box>
+        <Box title="Ticker Information">
           {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
-        </div>
-        <div className='box'>
-          <h1>Ticker Information</h1>
+        </Box>
+        <Box title="Valuation Summary">
           {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
-        </div>
-        <div className='box'>
-          <h1>Valuation Summary</h1>
+        </Box>
+        <Box title="Stock Price">
           {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
-        </div>
-        <div className='box'>
-          <h1>Stock Price</h1>
-          {stockData && <pre>{JSON.stringify(stockData, null, 2)}</pre>}
-        </div>
-      </div>
+        </Box>
+      </GridLayout>
     </div>
   );
 }
