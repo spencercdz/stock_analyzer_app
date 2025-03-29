@@ -1,3 +1,6 @@
+# main.py
+
+from flask_cors import CORS
 from flask import Flask, request, render_template
 from datetime import datetime
 import os
@@ -6,27 +9,43 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import dcf_calculator as dcf
 import numpy as np
+import json
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 app.secret_key = 'owadio'
 
-@app.route('/', methods = ['GET', 'POST'])
-def home():
-    if request.method == 'POST':
-        stock_ticker = request.form.get('ticker')
-        stock_ticker = stock_ticker.upper()
-        stock_info, stock_financials, fcf_dict = scrape_stock_details(stock_ticker)
-    return render_template('home.html')
+@app.route('/', methods=['GET'])
+def index():
+    return {"message": "Flask backend is running"}
+
+@app.route('/api/stock/<ticker>', methods=['GET'])
+def get_stock_details(ticker):
+    stock_ticker = ticker.upper()
+    stock_info, stock_financials, fcf_dict = scrape_stock_details(stock_ticker)
+    return {"stock_info": stock_info, "stock_financials": stock_financials, "fcf": fcf_dict}
 
 def scrape_stock_details(ticker: str):
     stock_ticker = yf.Ticker(ticker)
-
+    print(stock_ticker.info)
     filtered_stock_info = filter_stock_summary(stock_ticker.info)
     filtered_stock_financials, fcf = filter_stock_financials(stock_ticker, filtered_stock_info)
     intrinsic_value = calculate_intrinsic_value_dcf(filtered_stock_financials, fcf)
     
 
     return filtered_stock_info, filtered_stock_financials, fcf
+
+def scrape_country_industry_data():
+    Country = 'United States'
+    Industry = 'Banking'
+    with open('country_industry_data.json', 'r') as file:
+        data = json.load(file)
+        treasury_rate = data['countries'][Country]['10y_treasury_rate']
+        benchmark_etf = data['countries'][Country]['benchmark_etf']
+        benchmark_etf_return = data['countries'][Country]['benchmark_etf_return']
+        industry_rate = data['industries'][Industry]['growth_rate']
+    print(treasury_rate, benchmark_etf, benchmark_etf_return, industry_rate)
+    pass
+
 
 def filter_stock_summary(stock: dict):
     keys_map = {
@@ -43,7 +62,8 @@ def filter_stock_summary(stock: dict):
         'fiftyTwoWeekHigh': '52 Week High',
         'fiftyTwoWeekLow': '52 Week Low',
         'longBusinessSummary': 'Summary',
-        'beta': 'Beta'
+        'beta': 'Beta',
+        'country' : 'Country',
     }
     return {value: stock[key] for key, value in keys_map.items() if key in stock}
 
