@@ -41,6 +41,8 @@ function App() {
     }
   }, []);
 
+  const apiUrl = process.env.REACT_APP_API_URL;
+
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   const fetchWithRetry = React.useCallback(async (url, options = {}, retryCount = 0, maxRetries = 3) => {
@@ -77,14 +79,14 @@ function App() {
 
     try {
       // Fetch stock data
-      const response = await fetchWithRetry(`https://spencer-stock-analyzer.onrender.com/api/stock/${ticker}`);
+      const response = await fetchWithRetry(`${apiUrl}/api/stock/${ticker}`);
       const data = await response.json();
       
       // Add delay between requests
       await delay(1000);
       
       // Fetch price history
-      const historyResponse = await fetchWithRetry(`https://spencer-stock-analyzer.onrender.com/api/stock/${ticker}/history?timeframe=${timeframe}`);
+      const historyResponse = await fetchWithRetry(`${apiUrl}/api/stock/${ticker}/history?timeframe=${timeframe}`);
       const historyData = await historyResponse.json();
       
       // Update state

@@ -14,7 +14,7 @@ import time
 import requests
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
-app.secret_key = 'owadio'
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 CORS(app)
 
 # Simple cache to store stock data
@@ -32,6 +32,11 @@ def get_stock_details(ticker):
 
     # Fetch data from yfinance
     stock_data = fetch_stock_data(ticker)
+
+    # Error handling
+    if stock_data is None:
+        return jsonify({"error": "Stock data not found"}), 404
+    
     # Store the result in the cache
     cache[ticker] = stock_data
     return jsonify(stock_data)
