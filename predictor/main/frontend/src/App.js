@@ -41,11 +41,16 @@ function App() {
     }
   }, []);
 
-  const apiUrl = process.env.REACT_APP_API_URL;
+  useEffect(() => {
+    console.log("API URL:", process.env.REACT_APP_API_URL);
+  }, []);
+
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://spencer-stock-analyzer.onrender.com';
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   const fetchWithRetry = React.useCallback(async (url, options = {}, retryCount = 0, maxRetries = 3) => {
+    console.log(`Attempting to fetch from: ${url}`);
     try {
       const response = await fetch(url, options);
       if (!response.ok) {
@@ -53,8 +58,10 @@ function App() {
       }
       return response;
     } catch (error) {
+      console.error(`Fetch error: ${error.message}`);
       if (retryCount < maxRetries) {
         const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
+        console.log(`Retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
         await delay(backoffDelay);
         return fetchWithRetry(url, options, retryCount + 1, maxRetries);
       }
@@ -63,6 +70,11 @@ function App() {
   }, []);
 
   const fetchStockData = React.useCallback(async () => {
+    if (!ticker.trim()) {
+      setError("Please enter a valid stock ticker");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setRetryCount(0);
@@ -71,6 +83,7 @@ function App() {
     const cacheKey = `${ticker}-${timeframe}`;
     const cachedData = cacheRef.current[cacheKey];
     if (cachedData && Date.now() - cachedData.timestamp < 5 * 60 * 1000) { // Cache for 5 minutes
+      console.log(`Using cached data for ${ticker}`);
       setStockData(cachedData.stockData);
       setPriceHistory(cachedData.priceHistory);
       setIsLoading(false);
@@ -79,16 +92,24 @@ function App() {
 
     try {
       // Fetch stock data
-      const response = await fetchWithRetry(`${apiUrl}/api/stock/${ticker}`);
-      const data = await response.json();
+      const stockUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}`;
+      console.log(`Fetching stock data from: ${stockUrl}`);
       
+      // Fetch stock data
+      const response = await fetchWithRetry(stockUrl);
+      const data = await response.json();
+      console.log("Stock data received:", data);
+
       // Add delay between requests
       await delay(1000);
       
       // Fetch price history
-      const historyResponse = await fetchWithRetry(`${apiUrl}/api/stock/${ticker}/history?timeframe=${timeframe}`);
+      const historyUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/history?timeframe=${timeframe}`;
+      console.log(`Fetching price history from: ${historyUrl}`);
+      const historyResponse = await fetchWithRetry(historyUrl);
       const historyData = await historyResponse.json();
-      
+      console.log("History data received:", historyData);
+
       // Update state
       setStockData(data);
       setPriceHistory(historyData);
@@ -109,7 +130,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [ticker, timeframe, fetchWithRetry]);
+  }, [ticker, timeframe, fetchWithRetry, apiUrl]);
 
   const handleTimeframeChange = React.useCallback((newTimeframe) => {
     setTimeframe(newTimeframe);

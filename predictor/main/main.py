@@ -12,23 +12,33 @@ import numpy as np
 import json
 import time
 import requests
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
-CORS(app)
+
+# Configure CORS properly
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Simple cache to store stock data
 cache = {}
 
 @app.route('/', methods=['GET'])
 def index():
+    logger.info("Root endpoint accessed")
     return {"message": "Flask backend is running"}
 
 @app.route('/api/stock/<ticker>', methods=['GET'])
 def get_stock_details(ticker):
+    logger.info(f"Stock details requested for ticker: {ticker}")
     # Check if the data is already in the cache
-    if ticker in cache:
-        return jsonify(cache[ticker])
+    if ticker in cache and (time.time() - cache[ticker]['timestamp']) < 300:  # 5 minutes cache
+        logger.info(f"Returning cached data for {ticker}")
+        return jsonify(cache[ticker]['data'])
 
     # Fetch data from yfinance
     stock_data = fetch_stock_data(ticker)
@@ -36,51 +46,97 @@ def get_stock_details(ticker):
     # Error handling
     if stock_data is None:
         return jsonify({"error": "Stock data not found"}), 404
-    
-    # Store the result in the cache
-    cache[ticker] = stock_data
-    return jsonify(stock_data)
+
+    return stock_data
 
 def fetch_stock_data(ticker):
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            # Introduce a delay to avoid hitting the rate limit
-            time.sleep(2)  # Adjust the delay as needed
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        if not info or 'symbol' not in info:
+            logger.error(f"No data found for ticker: {ticker}")
+            return jsonify({"error": "Stock data not found"}), 404
+        
+        # Format data to match frontend expectations
+        stock_data = {
+            "symbol": info.get('symbol', ''),
+            "companyName": info.get('longName', ''),
+            "currentPrice": info.get('currentPrice', 0),
+            "marketCap": info.get('marketCap', 0),
+            "open": info.get('regularMarketOpen', 0),
+            "high": info.get('dayHigh', 0),
+            "low": info.get('dayLow', 0),
+            "volume": info.get('volume', 0),
+            "peRatio": info.get('trailingPE', 0) or 0,
+            "dividendYield": info.get('dividendYield', 0) or 0,
+            "beta": info.get('beta', 0) or 0,
+            "fiftyTwoWeekHigh": info.get('fiftyTwoWeekHigh', 0)
+        }
+        
+        # Store in cache with timestamp
+        cache[ticker] = {
+            'data': stock_data,
+            'timestamp': time.time()
+        }
+        
+        logger.info(f"Successfully fetched and returning data for {ticker}")
+        return jsonify(stock_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching stock data for {ticker}: {str(e)}")
+        return jsonify({"error": f"Failed to fetch stock data: {str(e)}"}), 500
 
-            # Fetch stock info using requests
-            url = f'https://query1.finance.yahoo.com/v7/finance/quote?symbols={ticker}'
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an error for bad responses
-
-            stock_data = response.json()
-            print(stock_data)  # Debugging output
-
-            # Process the stock data as needed
-            if 'quoteResponse' in stock_data and stock_data['quoteResponse']['result']:
-                filtered_stock_info = filter_stock_summary(stock_data['quoteResponse']['result'][0])
-
-                # Fetch financials (you may need to adjust this based on your requirements)
-                filtered_stock_financials, fcf = filter_stock_financials(ticker, filtered_stock_info)
-
-                # Calculate intrinsic value
-                intrinsic_value = calculate_intrinsic_value_dcf(filtered_stock_financials, fcf)
-
-                return filtered_stock_info, filtered_stock_financials, fcf
-            else:
-                print(f"No data found for ticker: {ticker}")
-                return None
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 401:  # Unauthorized
-                print(f"Unauthorized access for ticker {ticker}: {e}")
-                return None
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if "Too Many Requests" in str(e):
-                # Exponential backoff
-                time.sleep(2 ** attempt)  # Wait longer with each attempt
-            else:
-                raise  # Raise other exceptions immediately
-    return None  # Return None if all attempts fail
+@app.route('/api/stock/<ticker>/history', methods=['GET'])
+def get_stock_history(ticker):
+    logger.info(f"Stock history requested for ticker: {ticker} with timeframe: {request.args.get('timeframe', '1D')}")
+    
+    timeframe = request.args.get('timeframe', '1D')
+    
+    # Map timeframe to yfinance period
+    period_map = {
+        '1D': '1d',
+        '1W': '1wk',
+        '1M': '1mo',
+        '3M': '3mo',
+        '1Y': '1y'
+    }
+    
+    # Map timeframe to interval
+    interval_map = {
+        '1D': '15m',
+        '1W': '1h',
+        '1M': '1d',
+        '3M': '1d',
+        '1Y': '1wk'
+    }
+    
+    period = period_map.get(timeframe, '1d')
+    interval = interval_map.get(timeframe, '15m')
+    
+    try:
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period=period, interval=interval)
+        
+        if hist.empty:
+            logger.warning(f"No historical data found for {ticker} with timeframe {timeframe}")
+            return jsonify({"error": "No historical data available"}), 404
+        
+        # Format data for the frontend
+        prices = hist['Close'].tolist()
+        timestamps = hist.index.strftime('%Y-%m-%d %H:%M:%S').tolist()
+        
+        history_data = {
+            "prices": prices,
+            "timestamps": timestamps
+        }
+        
+        logger.info(f"Successfully fetched history for {ticker} with timeframe {timeframe}")
+        return jsonify(history_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching stock history for {ticker}: {str(e)}")
+        return jsonify({"error": f"Failed to fetch stock history: {str(e)}"}), 500
 
 def scrape_country_industry_data():
     Country = 'United States'

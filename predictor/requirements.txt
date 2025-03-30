@@ -1,10 +1,12 @@
 Flask==2.3.2
-pybind11==2.10.4
+Flask-Cors==3.0.10
+gunicorn==20.1.0
 yfinance==0.2.55
 pandas==2.1.1
 matplotlib==3.7.2
+beautifulsoup4==4.13.3
 requests==2.31.0
-numpy==1.26.1
-gunicorn==20.1.0
-flask-cors==3.0.10
-# please add more
+pybind11==2.10.4
+numpy==1.24.3
+python-dotenv==1.0.0
+werkzeug==2.3.6
