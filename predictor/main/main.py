@@ -64,7 +64,10 @@ def fetch_stock_data(ticker):
             else:
                 print(f"No data found for ticker: {ticker}")
                 return None
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 401:  # Unauthorized
+                print(f"Unauthorized access for ticker {ticker}: {e}")
+                return None
             print(f"Attempt {attempt + 1} failed: {e}")
             if "Too Many Requests" in str(e):
                 # Exponential backoff
