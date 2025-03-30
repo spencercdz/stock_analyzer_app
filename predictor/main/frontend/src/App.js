@@ -281,7 +281,7 @@ function App() {
         <source src="/background.mp4" type="video/mp4" />
       </video>
       <GridLayout>
-        <Box title="Spencer's Stock Analysis">
+        <Box title="Spencer's Stock Analyzer">
           <div className="search-container">
             <input
               type="text"
