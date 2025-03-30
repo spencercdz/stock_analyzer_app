@@ -6,4 +6,5 @@ matplotlib==3.7.2
 requests==2.31.0
 numpy==1.26.1
 gunicorn==20.1.0
+flask-cors==3.0.10
 # please add more
