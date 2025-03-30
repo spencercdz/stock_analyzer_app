@@ -2,9 +2,9 @@ from setuptools import setup, Extension
 import pybind11
 
 dcf_calculator = Extension(
-    name='dcf_calculator',                  
-    sources=['main/dcf_calculator.cpp'],   
-    include_dirs=[pybind11.get_include()],       
+    name='dcf_calculator',
+    sources=['main/dcf_calculator.cpp'],
+    include_dirs=[pybind11.get_include()],  # Ensure this line is present
     language='c++',
 )
 
