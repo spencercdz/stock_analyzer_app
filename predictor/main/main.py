@@ -1,7 +1,7 @@
 # main.py
 
 from flask_cors import CORS
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from datetime import datetime
 import os
 import yfinance as yf
@@ -10,9 +10,14 @@ import matplotlib.pyplot as plt
 import dcf_calculator as dcf
 import numpy as np
 import json
+import time
+import requests
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 app.secret_key = 'owadio'
+
+# Simple cache to store stock data
+cache = {}
 
 @app.route('/', methods=['GET'])
 def index():
@@ -20,19 +25,53 @@ def index():
 
 @app.route('/api/stock/<ticker>', methods=['GET'])
 def get_stock_details(ticker):
-    stock_ticker = ticker.upper()
-    stock_info, stock_financials, fcf_dict = scrape_stock_details(stock_ticker)
-    return {"stock_info": stock_info, "stock_financials": stock_financials, "fcf": fcf_dict}
+    # Check if the data is already in the cache
+    if ticker in cache:
+        return jsonify(cache[ticker])
 
-def scrape_stock_details(ticker: str):
-    stock_ticker = yf.Ticker(ticker)
-    print(stock_ticker.info)
-    filtered_stock_info = filter_stock_summary(stock_ticker.info)
-    filtered_stock_financials, fcf = filter_stock_financials(stock_ticker, filtered_stock_info)
-    intrinsic_value = calculate_intrinsic_value_dcf(filtered_stock_financials, fcf)
-    
+    # Fetch data from yfinance
+    stock_data = fetch_stock_data(ticker)
+    # Store the result in the cache
+    cache[ticker] = stock_data
+    return jsonify(stock_data)
 
-    return filtered_stock_info, filtered_stock_financials, fcf
+def fetch_stock_data(ticker):
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            # Introduce a delay to avoid hitting the rate limit
+            time.sleep(2)  # Adjust the delay as needed
+
+            # Fetch stock info using requests
+            url = f'https://query1.finance.yahoo.com/v7/finance/quote?symbols={ticker}'
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for bad responses
+
+            stock_data = response.json()
+            print(stock_data)  # Debugging output
+
+            # Process the stock data as needed
+            if 'quoteResponse' in stock_data and stock_data['quoteResponse']['result']:
+                filtered_stock_info = filter_stock_summary(stock_data['quoteResponse']['result'][0])
+
+                # Fetch financials (you may need to adjust this based on your requirements)
+                filtered_stock_financials, fcf = filter_stock_financials(ticker, filtered_stock_info)
+
+                # Calculate intrinsic value
+                intrinsic_value = calculate_intrinsic_value_dcf(filtered_stock_financials, fcf)
+
+                return filtered_stock_info, filtered_stock_financials, fcf
+            else:
+                print(f"No data found for ticker: {ticker}")
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            if "Too Many Requests" in str(e):
+                # Exponential backoff
+                time.sleep(2 ** attempt)  # Wait longer with each attempt
+            else:
+                raise  # Raise other exceptions immediately
+    return None  # Return None if all attempts fail
 
 def scrape_country_industry_data():
     Country = 'United States'
