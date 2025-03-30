@@ -5,5 +5,4 @@ pandas==2.1.1
 matplotlib==3.7.2
 requests==2.31.0
 numpy==1.26.1
-json==2.0.9
-#please add more
+# please add more
