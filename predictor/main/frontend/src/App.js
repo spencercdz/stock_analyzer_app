@@ -34,6 +34,8 @@ function App() {
   const [retryCount, setRetryCount] = useState(0);
   const videoRef = useRef(null);
   const cacheRef = useRef({});
+  // Add a ref to track if we're currently fetching data to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -75,6 +77,13 @@ function App() {
       return;
     }
 
+    // Check if we're already fetching data to prevent duplicate requests
+    if (isFetchingRef.current) {
+      console.log("Already fetching data, skipping duplicate request");
+      return;
+    }
+
+    isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
     setRetryCount(0);
@@ -87,6 +96,7 @@ function App() {
       setStockData(cachedData.stockData);
       setPriceHistory(cachedData.priceHistory);
       setIsLoading(false);
+      isFetchingRef.current = false;
       return;
     }
 
@@ -129,15 +139,19 @@ function App() {
       setPriceHistory(null);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, [ticker, timeframe, fetchWithRetry, apiUrl]);
 
   const handleTimeframeChange = React.useCallback((newTimeframe) => {
+    if (newTimeframe === timeframe) return; // Prevent unnecessary state updates
+    
     setTimeframe(newTimeframe);
     if (stockData) { // Only fetch if we already have data
-      fetchStockData();
+      // Use setTimeout to ensure timeframe state has updated before fetching
+      setTimeout(() => fetchStockData(), 0);
     }
-  }, [stockData, fetchStockData]);
+  }, [stockData, fetchStockData, timeframe]);
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US', {
@@ -152,8 +166,32 @@ function App() {
     return `${(num * 100).toFixed(2)}%`;
   };
 
+  // Format date labels based on timeframe
+  const formatChartLabels = (timestamps, timeframe) => {
+    if (!timestamps || !timestamps.length) return [];
+    
+    return timestamps.map(timestamp => {
+      const date = new Date(timestamp);
+      
+      switch(timeframe) {
+        case '1D':
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        case '1W':
+          return date.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
+        case '1M':
+          return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        case '3M':
+          return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        case '1Y':
+          return date.toLocaleDateString([], { month: 'short', year: '2-digit' });
+        default:
+          return timestamp;
+      }
+    });
+  };
+
   const chartData = priceHistory ? {
-    labels: priceHistory.timestamps,
+    labels: formatChartLabels(priceHistory.timestamps, timeframe),
     datasets: [
       {
         label: 'Stock Price',
@@ -161,7 +199,12 @@ function App() {
         borderColor: 'rgb(147, 0, 255)',
         backgroundColor: 'rgba(147, 0, 255, 0.1)',
         tension: 0.4,
-        fill: true
+        fill: true,
+        pointBackgroundColor: 'rgb(147, 0, 255)',
+        pointBorderColor: '#fff',
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        borderWidth: 2
       }
     ]
   } : null;
@@ -172,6 +215,20 @@ function App() {
     plugins: {
       legend: {
         display: false
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: 'rgba(147, 0, 255, 0.5)',
+        borderWidth: 1,
+        padding: 10,
+        displayColors: false,
+        callbacks: {
+          label: function(context) {
+            return `Price: ${formatNumber(context.raw)}`;
+          }
+        }
       }
     },
     scales: {
@@ -181,16 +238,32 @@ function App() {
           color: 'rgba(255, 255, 255, 0.1)'
         },
         ticks: {
-          color: 'rgba(255, 255, 255, 0.8)'
+          color: 'rgba(255, 255, 255, 0.8)',
+          callback: function(value) {
+            return formatNumber(value);
+          },
+          maxTicksLimit: 6
         }
       },
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
+          color: 'rgba(255, 255, 255, 0.1)',
+          display: false
         },
         ticks: {
-          color: 'rgba(255, 255, 255, 0.8)'
+          color: 'rgba(255, 255, 255, 0.8)',
+          maxRotation: 45,
+          minRotation: 0,
+          maxTicksLimit: 10
         }
+      }
+    },
+    layout: {
+      padding: 10
+    },
+    elements: {
+      line: {
+        tension: 0.4
       }
     }
   };
@@ -216,6 +289,7 @@ function App() {
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               disabled={isLoading}
+              onKeyPress={(e) => e.key === 'Enter' && !isLoading && ticker && fetchStockData()}
             />
             <button 
               onClick={fetchStockData}

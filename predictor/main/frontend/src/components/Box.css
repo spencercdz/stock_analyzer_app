@@ -306,11 +306,14 @@ button.loading::after {
 
 /* Chart Styles */
 .chart-container {
-  width: 100%;
-  height: 100%;
+  width: 90%;
+  height: 75%;
   display: flex;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
   padding: 1rem;
+  margin: 0 auto; /* This will center the container itself */
 }
 
 .timeframe-selector {
@@ -346,11 +349,22 @@ button.loading::after {
 
 .chart-wrapper {
   flex: 1;
-  min-height: 300px;
+  min-height: 250px;
+  max-height: 300px;
+  width: 100%;
   position: relative;
   background-color: var(--white-transparent);
   border-radius: 8px;
   padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.chart-wrapper canvas {
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Media Queries */
@@ -366,7 +380,7 @@ button.loading::after {
   }
   
   .timeframe-selector button {
-    padding: 0.4rem 0.8rem;
+    padding: 0rem 0.8rem;
   }
 }
 
