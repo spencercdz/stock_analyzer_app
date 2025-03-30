@@ -15,6 +15,7 @@ import requests
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 app.secret_key = 'owadio'
+CORS(app)
 
 # Simple cache to store stock data
 cache = {}
