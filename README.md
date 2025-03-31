@@ -1,6 +1,6 @@
 # Spencer's Stock Analyzer
 
-[![Visit My Website](https://imgur.com/a/77ZIQxx)](https://spencer-analyzer.vercel.app/)
+[![Visit My Website](https://i.imgur.com/w0M98LD.mp4)](https://spencer-analyzer.vercel.app/)
 
 **NOTE: It may take over a minute when the first stock ticker is input due to Render's winding down after inactivity. After the Render backend has been restarted fully, the subsequent ticker searches should be instantaneous!**
 
