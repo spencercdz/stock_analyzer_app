@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://spencer-analyzer.vercel.app/">
-    <img src="https://i.imgur.com/YKeSv7l.gif" alt="Visit My Website" width="700">
+    <img src="https://i.imgur.com/YKeSv7l.gif" alt="Visit My Website">
   </a>
 </p>
 
