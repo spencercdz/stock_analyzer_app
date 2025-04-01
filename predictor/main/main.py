@@ -2,16 +2,13 @@
 
 from flask_cors import CORS
 from flask import Flask, request, render_template, jsonify
-from datetime import datetime
 import os
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
 import dcf_calculator as dcf
 import numpy as np
 import json
 import time
-import requests
 import logging
 
 # Configure logging
@@ -69,7 +66,7 @@ def fetch_stock_data(ticker):
             "low": info.get('dayLow', 0),
             "volume": info.get('volume', 0),
             "peRatio": info.get('trailingPE', 0) or 0,
-            "dividendYield": info.get('dividendYield', 0) or 0,
+            "dividendYield": info.get('dividendYield', 0) / 100 or 0,
             "beta": info.get('beta', 0) or 0,
             "fiftyTwoWeekHigh": info.get('fiftyTwoWeekHigh', 0)
         }
