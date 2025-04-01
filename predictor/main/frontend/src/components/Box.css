@@ -415,3 +415,14 @@ button.loading::after {
     padding: 0.3rem;
   }
 } 
+
+/* Change to 1x4 grid for smaller screens */
+@media screen and (max-width: 950px) {
+  /* Remove all inner borders for the grid items */
+  .box:nth-child(1), 
+  .box:nth-child(2), 
+  .box:nth-child(3) {
+    border-right: none;
+    border-bottom: none;
+  }
+}
