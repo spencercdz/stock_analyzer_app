@@ -1,13 +1,33 @@
 :root {
-  --primary-color: rgba(147, 0, 255, 0.8);
-  --primary-hover-color: rgba(180, 0, 255, 0.8);
+  --primary-color: rgba(147, 0, 255, 0.7);
+  --primary-hover-color: rgba(180, 0, 255, 0.7);
+  --scrollbar-color: rgba(255, 255, 255, 0.7);
+  --scrollbar-hover-color: #87778dcc;
   --text-color: #ffffff;
   --border-color: #ccc;
-  --white-transparent: rgba(34, 34, 34, 0.8);
-  --border-transparent: rgba(147, 0, 255, 0.8);
+  --white-transparent: rgba(34, 34, 34, 0.7);
+  --border-transparent: rgba(147, 0, 255, 0.7);
   --retro-font: 'Orbitron', sans-serif;
   --retro-font-alt: 'Orbitron', sans-serif;
   --retro-font-tech: 'Orbitron', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-color);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover-color);
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .App {

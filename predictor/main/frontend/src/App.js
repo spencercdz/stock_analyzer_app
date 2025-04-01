@@ -281,7 +281,7 @@ function App() {
         <source src="/background.mp4" type="video/mp4" />
       </video>
       <GridLayout>
-        <Box title="Spencer's Stock Analyzer">
+        <Box title="Stock Analyzer V1.1">
           <div className="search-container">
             <input
               type="text"
@@ -328,20 +328,16 @@ function App() {
                 <span className="value">{formatNumber(stockData.marketCap)}</span>
               </div>
               <div className="info-row">
-                <span className="label">Open:</span>
-                <span className="value">{formatNumber(stockData.open)}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">High:</span>
-                <span className="value">{formatNumber(stockData.high)}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Low:</span>
-                <span className="value">{formatNumber(stockData.low)}</span>
-              </div>
-              <div className="info-row">
                 <span className="label">Volume:</span>
                 <span className="value">{stockData.volume.toLocaleString()}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Beta:</span>
+                <span className="value">{stockData.beta.toFixed(2)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Dividend Yield:</span>
+                <span className="value">{formatPercent(stockData.dividendYield)}</span>
               </div>
             </div>
           ) : (
@@ -358,16 +354,8 @@ function App() {
                 <span className="value">{stockData.peRatio.toFixed(2)}</span>
               </div>
               <div className="info-row">
-                <span className="label">Dividend Yield:</span>
-                <span className="value">{formatPercent(stockData.dividendYield)}</span>
-              </div>
-              <div className="info-row">
                 <span className="label">Beta:</span>
                 <span className="value">{stockData.beta.toFixed(2)}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">52 Week High:</span>
-                <span className="value">{formatNumber(stockData.fiftyTwoWeekHigh)}</span>
               </div>
             </div>
           ) : (
