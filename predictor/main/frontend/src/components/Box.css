@@ -313,6 +313,28 @@ button.loading::after {
 
 /* Mobile support: Change to 1x4 grid for smaller screens */
 @media screen and (max-width: 900px) {
+  /* Prevent page scrolling */
+  body {
+    overflow: hidden;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
+    -webkit-overflow-scrolling: none;
+  }
+
+  /* System theme support */
+  @media (prefers-color-scheme: dark) {
+    .box {
+      background-color: rgba(34, 34, 34, 0.7);
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .box {
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
   ::-webkit-scrollbar {
     display: none;
   }
