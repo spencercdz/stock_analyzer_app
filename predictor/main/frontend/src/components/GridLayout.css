@@ -24,11 +24,10 @@
   overflow: hidden;
 } 
 
-/* Change to 1x4 grid for smaller screens */
-@media screen and (max-width: 950px) {
+@media screen and (max-width: 900px) {
   .container {
-    padding: 10px;
-    width: 100%;
+    padding: 20px;
+    width: auto;
     overflow-x: hidden;
     box-sizing: border-box;
     margin: 0;
@@ -40,57 +39,9 @@
     overflow-y: visible;
     height: auto;
     max-height: 90vh;
-    width: 100%;
+    width: auto;
     box-sizing: border-box;
     position: relative;
     margin: 0;
-  }
-
-  /* Add purple lines between boxes */
-  .box {
-    height: auto;
-    min-height: 300px;
-    overflow-x: hidden;
-    box-sizing: border-box;
-    position: relative;
-    width: 100%;
-    max-width: 100vw;
-  }
-
-  /* Add horizontal lines between boxes */
-  .box:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background-color: var(--border-transparent);
-  }
-
-  .chart-container {
-    overflow: hidden;
-    height: auto;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100vw;
-    margin: 0;
-    padding: 0;
-  }
-
-  .chart-wrapper {
-    height: visible;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100vw;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
-
-  /* Ensure chart canvas doesn't overflow */
-  canvas {
-    max-width: 100%;
-    width: 100% !important;
   }
 }
