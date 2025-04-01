@@ -231,79 +231,6 @@ button.loading::after {
   }
 }
 
-/* Media Queries */
-@media screen and (max-width: 768px) {
-  .box {
-    padding: 1rem;
-  }
-
-  .box text, pre {
-    width: 95%;
-  }
-
-  .search-container {
-    width: 95%;
-  }
-
-  .stock-info {
-    width: 95%;
-    padding: 0.8rem;
-  }
-
-  .loading-message,
-  .placeholder-message,
-  .error-message {
-    width: 95%;
-    padding: 0.8rem;
-  }
-
-  .search-container input,
-  .search-container button {
-    height: 40px;
-  }
-  
-  .search-container button {
-    min-width: 80px;
-    padding: 0 1.2rem;
-  }
-}
-
-@media screen and (max-width: 480px) {
-  .box {
-    padding: 0.8rem;
-  }
-
-  .box text, pre {
-    width: 100%;
-  }
-
-  .search-container {
-    width: 100%;
-  }
-
-  .stock-info {
-    width: 100%;
-    padding: 0.6rem;
-  }
-
-  .loading-message,
-  .placeholder-message,
-  .error-message {
-    width: 100%;
-    padding: 0.6rem;
-  }
-
-  .search-container input,
-  .search-container button {
-    height: 36px;
-  }
-  
-  .search-container button {
-    min-width: 70px;
-    padding: 0 1rem;
-  }
-}
-
 /* Chart Styles */
 .chart-container {
   max-width: 100%;
@@ -371,23 +298,6 @@ button.loading::after {
   max-height: 100vh !important;
 }
 
-/* Media Queries */
-@media screen and (max-width: 768px) {
-  .chart-wrapper {
-    min-height: 250px;
-  }
-}
-
-@media screen and (max-width: 480px) {
-  .chart-wrapper {
-    min-height: 200px;
-  }
-  
-  .timeframe-selector button {
-    padding: 0rem 0.8rem;
-  }
-}
-
 /* Retry Message */
 .retry-message {
   width: 90%;
@@ -401,7 +311,7 @@ button.loading::after {
   border: 1px solid var(--border-transparent);
 }
 
-/* Change to 1x4 grid for smaller screens */
+/* Mobile support: Change to 1x4 grid for smaller screens */
 @media screen and (max-width: 900px) {
   ::-webkit-scrollbar {
     display: none;
@@ -414,6 +324,7 @@ button.loading::after {
     overflow-x: hidden;
     box-sizing: border-box;
     position: relative;
+    align-items: center;
     width: auto;
     max-width: auto;
   }
