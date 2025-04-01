@@ -313,11 +313,9 @@ button.loading::after {
 
 /* Mobile support: Change to 1x4 grid for smaller screens */
 @media screen and (max-width: 900px) {
-  /*
   ::-webkit-scrollbar {
     display: none;
   }
-  */
 
   /*Add purple lines between boxes */
   .box {
@@ -327,28 +325,31 @@ button.loading::after {
     box-sizing: border-box;
     position: relative;
     align-items: center;
-    width: auto;
-    max-width: auto;
+    width: 100%;
+    max-width: 100%;
+    padding: 1rem;
   }
 
   .box h1 {
-    font-size: clamp(1rem, 1vw, 1.5rem);
+    font-size: clamp(1.2rem, 2vw, 1.5rem);
+    margin: 0.5rem 0;
   }
 
   .box button {
-    font-size: clamp(0.75rem, 1vw, 1rem);
-    padding: 0rem 0.8rem;
-    margin: 0rem 0rem;
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
   }
 
   .box input {
-    font-size: clamp(0.75rem, 1vw, 1rem);
-    padding: 0rem 0.8rem;
-    margin: 0.035rem 0rem;
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
   }
 
   .box text {
-    font-size: clamp(0.75rem, 1vw, 1rem);
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    padding: 0.5rem 0;
   }
 
   .box:nth-child(1), 
@@ -369,29 +370,84 @@ button.loading::after {
     background-color: var(--border-transparent);
   }
 
+  /* Search Container Styles */
+  .search-container {
+    width: 95%;
+    max-width: 400px;
+    margin: 0.5rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .search-container input {
+    flex: 1;
+    height: 40px;
+    padding: 0 1rem;
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    border-radius: 8px 0 0 8px;
+  }
+
+  .search-container button {
+    height: 42px;
+    padding: 0 1.2rem;
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    min-width: 80px;
+    border-radius: 0 8px 8px 0;
+  }
+
+  /* Chart Styles */
   .chart-container {
-    overflow: hidden;
+    width: 100%;
     height: auto;
     box-sizing: border-box;
-    width: 100%;
-    max-width: 100vw;
     margin: 0;
     padding: 0;
   }
 
   .chart-wrapper {
-    height: visible;
-    box-sizing: border-box;
     width: 100%;
-    max-width: 100vw;
+    height: auto;
+    min-height: 200px;
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
   }
 
-  /* Ensure chart canvas doesn't overflow */
-  canvas {
-    max-width: 100%;
+  .chart-wrapper canvas {
     width: 100% !important;
+    height: auto;
+  }
+
+  /* Timeframe Selector */
+  .timeframe-selector {
+    gap: 0rem;
+    padding: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .timeframe-selector button {
+    padding: 0.3rem 0.75rem;
+    margin-bottom: 0.2rem;
+    margin-top: 0.2rem;
+    font-size: clamp(0.8rem, 1vw, 1rem);
+  }
+
+  /* Stock Info Styles */
+  .stock-info {
+    width: 95%;
+    margin: 0 auto;
+    padding: 0.5rem;
+  }
+
+  .info-row {
+    padding: 0.3rem 0;
+  }
+
+  .info-row .label,
+  .info-row .value {
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
   }
 }
