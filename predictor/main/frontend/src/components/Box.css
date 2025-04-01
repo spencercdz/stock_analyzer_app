@@ -313,20 +313,42 @@ button.loading::after {
 
 /* Mobile support: Change to 1x4 grid for smaller screens */
 @media screen and (max-width: 900px) {
+  /*
   ::-webkit-scrollbar {
     display: none;
   }
+  */
 
   /*Add purple lines between boxes */
   .box {
     height: auto;
-    min-height: auto;
+    max-height: auto;
     overflow-x: hidden;
     box-sizing: border-box;
     position: relative;
     align-items: center;
     width: auto;
     max-width: auto;
+  }
+
+  .box h1 {
+    font-size: clamp(1rem, 1vw, 1.5rem);
+  }
+
+  .box button {
+    font-size: clamp(0.75rem, 1vw, 1rem);
+    padding: 0rem 0.8rem;
+    margin: 0rem 0rem;
+  }
+
+  .box input {
+    font-size: clamp(0.75rem, 1vw, 1rem);
+    padding: 0rem 0.8rem;
+    margin: 0.035rem 0rem;
+  }
+
+  .box text {
+    font-size: clamp(0.75rem, 1vw, 1rem);
   }
 
   .box:nth-child(1), 

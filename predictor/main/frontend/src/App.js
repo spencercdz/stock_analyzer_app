@@ -281,11 +281,11 @@ function App() {
         <source src="/background.mp4" type="video/mp4" />
       </video>
       <GridLayout>
-        <Box title="Stock Analyzer V1.1">
+        <Box title="Stock Analyzer">
           <div className="search-container">
             <input
               type="text"
-              placeholder="Enter stock ticker"
+              placeholder="Enter Ticker"
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               disabled={isLoading}
