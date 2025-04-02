@@ -90,11 +90,11 @@ def get_stock_history(ticker):
     
     # Define all timeframes and their corresponding yfinance parameters
     timeframe_configs = {
-        '1D': {'period': '1d', 'interval': '1h'},
+        '1D': {'period': '1d', 'interval': '30m'},
         '1W': {'period': '1wk', 'interval': '1d'},
-        '1M': {'period': '1mo', 'interval': '1wk'},
-        '3M': {'period': '3mo', 'interval': '1mo'},
-        '1Y': {'period': '1y', 'interval': '3mo'}
+        '1M': {'period': '1mo', 'interval': '5d'},
+        '3M': {'period': '3mo', 'interval': '1wk'},
+        '1Y': {'period': '1y', 'interval': '1mo'}
     }
     
     try:
