@@ -177,7 +177,7 @@ function App() {
         case '1D':
           return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         case '1W':
-          return date.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
+          return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
         case '1M':
           return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
         case '3M':

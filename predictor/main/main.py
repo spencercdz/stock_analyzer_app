@@ -92,7 +92,7 @@ def get_stock_history(ticker):
     timeframe_configs = {
         '1D': {'period': '1d', 'interval': '30m'},
         '1W': {'period': '1wk', 'interval': '1d'},
-        '1M': {'period': '1mo', 'interval': '5d'},
+        '1M': {'period': '1mo', 'interval': '1d'},
         '3M': {'period': '3mo', 'interval': '1wk'},
         '1Y': {'period': '1y', 'interval': '1mo'}
     }
