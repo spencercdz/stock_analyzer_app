@@ -101,11 +101,11 @@ def get_stock_history(ticker):
     
     # Map timeframe to interval
     interval_map = {
-        '1D': '15m',
-        '1W': '1h',
-        '1M': '1d',
-        '3M': '1d',
-        '1Y': '1wk'
+        '1D': '1h',
+        '1W': '1d',
+        '1M': '1wk',
+        '3M': '1mo',
+        '1Y': '3mo'
     }
     
     period = period_map.get(timeframe, '1d')
