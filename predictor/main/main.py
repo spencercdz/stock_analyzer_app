@@ -86,50 +86,40 @@ def fetch_stock_data(ticker):
 
 @app.route('/api/stock/<ticker>/history', methods=['GET'])
 def get_stock_history(ticker):
-    logger.info(f"Stock history requested for ticker: {ticker} with timeframe: {request.args.get('timeframe', '1D')}")
+    logger.info(f"Stock history requested for ticker: {ticker}")
     
-    timeframe = request.args.get('timeframe', '1D')
-    
-    # Map timeframe to yfinance period
-    period_map = {
-        '1D': '1d',
-        '1W': '1wk',
-        '1M': '1mo',
-        '3M': '3mo',
-        '1Y': '1y'
+    # Define all timeframes and their corresponding yfinance parameters
+    timeframe_configs = {
+        '1D': {'period': '1d', 'interval': '1h'},
+        '1W': {'period': '1wk', 'interval': '1d'},
+        '1M': {'period': '1mo', 'interval': '1wk'},
+        '3M': {'period': '3mo', 'interval': '1mo'},
+        '1Y': {'period': '1y', 'interval': '3mo'}
     }
-    
-    # Map timeframe to interval
-    interval_map = {
-        '1D': '1d',
-        '1W': '1wk',
-        '1M': '1mo',
-        '3M': '3mo',
-        '1Y': '3mo'
-    }
-    
-    period = period_map.get(timeframe, '1d')
-    interval = interval_map.get(timeframe, '15m')
     
     try:
         stock = yf.Ticker(ticker)
-        hist = stock.history(period=period, interval=interval)
+        all_history_data = {}
         
-        if hist.empty:
-            logger.warning(f"No historical data found for {ticker} with timeframe {timeframe}")
-            return jsonify({"error": "No historical data available"}), 404
+        for timeframe, config in timeframe_configs.items():
+            hist = stock.history(period=config['period'], interval=config['interval'])
+            
+            if hist.empty:
+                logger.warning(f"No historical data found for {ticker} with timeframe {timeframe}")
+                all_history_data[timeframe] = {"error": "No historical data available"}
+                continue
+            
+            # Format data for the frontend
+            prices = hist['Close'].tolist()
+            timestamps = hist.index.strftime('%Y-%m-%d %H:%M:%S').tolist()
+            
+            all_history_data[timeframe] = {
+                "prices": prices,
+                "timestamps": timestamps
+            }
         
-        # Format data for the frontend
-        prices = hist['Close'].tolist()
-        timestamps = hist.index.strftime('%Y-%m-%d %H:%M:%S').tolist()
-        
-        history_data = {
-            "prices": prices,
-            "timestamps": timestamps
-        }
-        
-        logger.info(f"Successfully fetched history for {ticker} with timeframe {timeframe}")
-        return jsonify(history_data)
+        logger.info(f"Successfully fetched all timeframes for {ticker}")
+        return jsonify(all_history_data)
         
     except Exception as e:
         logger.error(f"Error fetching stock history for {ticker}: {str(e)}")

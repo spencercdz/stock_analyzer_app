@@ -30,11 +30,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState('1D');
-  const [priceHistory, setPriceHistory] = useState(null);
+  const [priceHistory, setPriceHistory] = useState({
+    '1D': null,
+    '1W': null,
+    '1M': null,
+    '3M': null,
+    '1Y': null
+  });
   const [retryCount, setRetryCount] = useState(0);
   const videoRef = useRef(null);
   const cacheRef = useRef({});
-  // Add a ref to track if we're currently fetching data to prevent duplicate fetches
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
@@ -77,7 +82,6 @@ function App() {
       return;
     }
 
-    // Check if we're already fetching data to prevent duplicate requests
     if (isFetchingRef.current) {
       console.log("Already fetching data, skipping duplicate request");
       return;
@@ -88,10 +92,9 @@ function App() {
     setError(null);
     setRetryCount(0);
     
-    // Check cache first
-    const cacheKey = `${ticker}-${timeframe}`;
+    const cacheKey = ticker;
     const cachedData = cacheRef.current[cacheKey];
-    if (cachedData && Date.now() - cachedData.timestamp < 5 * 60 * 1000) { // Cache for 5 minutes
+    if (cachedData && Date.now() - cachedData.timestamp < 5 * 60 * 1000) {
       console.log(`Using cached data for ${ticker}`);
       setStockData(cachedData.stockData);
       setPriceHistory(cachedData.priceHistory);
@@ -105,16 +108,12 @@ function App() {
       const stockUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}`;
       console.log(`Fetching stock data from: ${stockUrl}`);
       
-      // Fetch stock data
       const response = await fetchWithRetry(stockUrl);
       const data = await response.json();
       console.log("Stock data received:", data);
 
-      // Add delay between requests
-      await delay(1000);
-      
-      // Fetch price history
-      const historyUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/history?timeframe=${timeframe}`;
+      // Fetch all price history at once
+      const historyUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/history`;
       console.log(`Fetching price history from: ${historyUrl}`);
       const historyResponse = await fetchWithRetry(historyUrl);
       const historyData = await historyResponse.json();
@@ -136,22 +135,23 @@ function App() {
         ? 'Too many requests. Please wait a moment and try again.'
         : 'An error occurred while fetching stock data. Please try again.');
       setStockData(null);
-      setPriceHistory(null);
+      setPriceHistory({
+        '1D': null,
+        '1W': null,
+        '1M': null,
+        '3M': null,
+        '1Y': null
+      });
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [ticker, timeframe, fetchWithRetry, apiUrl]);
+  }, [ticker, fetchWithRetry, apiUrl]);
 
   const handleTimeframeChange = React.useCallback((newTimeframe) => {
-    if (newTimeframe === timeframe) return; // Prevent unnecessary state updates
-    
+    if (newTimeframe === timeframe) return;
     setTimeframe(newTimeframe);
-    if (stockData) { // Only fetch if we already have data
-      // Use setTimeout to ensure timeframe state has updated before fetching
-      setTimeout(() => fetchStockData(), 0);
-    }
-  }, [stockData, fetchStockData, timeframe]);
+  }, [timeframe]);
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US', {
@@ -190,12 +190,13 @@ function App() {
     });
   };
 
-  const chartData = priceHistory ? {
-    labels: formatChartLabels(priceHistory.timestamps, timeframe),
+  // Update chart data to use the selected timeframe
+  const chartData = priceHistory[timeframe] ? {
+    labels: formatChartLabels(priceHistory[timeframe].timestamps, timeframe),
     datasets: [
       {
         label: 'Stock Price',
-        data: priceHistory.prices,
+        data: priceHistory[timeframe].prices,
         borderColor: 'rgb(147, 0, 255)',
         backgroundColor: 'rgba(147, 0, 255, 0.1)',
         tension: 0.4,
