@@ -275,29 +275,64 @@ def filter_stock_financials(ticker: str) -> dict:
         })
         
         # Get financial statements
-        income_statement = stock.get_income_stmt(as_dict=True, freq='yearly')
-        balance_sheet = stock.get_balance_sheet(as_dict=True, freq='yearly')
-        cash_flow = stock.get_cashflow(as_dict=True, freq='yearly')
-        
-        # Update with financial data
-        stock_data.update({
-            "interestExpense": income_statement.get('InterestExpense', 0),
-            "taxProvision": income_statement.get('TaxProvision', 0),
-            "pretaxIncome": income_statement.get('PretaxIncome', 0),
-            "dilutedAverageShares": income_statement.get('DilutedAverageShares', 0),
-            "ebit": income_statement.get('EBIT', 0),
-            "totalDebt": balance_sheet.get('TotalDebt', 0),
-            "cashAndCashEquivalents": balance_sheet.get('CashAndCashEquivalents', 0),
-            "investedCapital": balance_sheet.get('InvestedCapital', 0),
-            "capex": cash_flow.get('CapitalExpenditure', 0),
-            "changeInWorkingCapital": cash_flow.get('ChangeInWorkingCapital', 0),
-        })
+        try:
+            income_stmt = stock.financials
+            balance_sheet = stock.balance_sheet
+            cash_flow = stock.cashflow
+            
+            # Get the most recent year's data
+            if not income_stmt.empty:
+                stock_data.update({
+                    "interestExpense": income_stmt.loc['Interest Expense'].iloc[0] if 'Interest Expense' in income_stmt.index else 0,
+                    "taxProvision": income_stmt.loc['Income Tax Expense'].iloc[0] if 'Income Tax Expense' in income_stmt.index else 0,
+                    "pretaxIncome": income_stmt.loc['Pretax Income'].iloc[0] if 'Pretax Income' in income_stmt.index else 0,
+                    "ebit": income_stmt.loc['EBIT'].iloc[0] if 'EBIT' in income_stmt.index else 0,
+                })
+            
+            if not balance_sheet.empty:
+                stock_data.update({
+                    "totalDebt": balance_sheet.loc['Total Debt'].iloc[0] if 'Total Debt' in balance_sheet.index else 0,
+                    "cashAndCashEquivalents": balance_sheet.loc['Cash And Cash Equivalents'].iloc[0] if 'Cash And Cash Equivalents' in balance_sheet.index else 0,
+                    "investedCapital": balance_sheet.loc['Total Assets'].iloc[0] - balance_sheet.loc['Total Current Liabilities'].iloc[0] if 'Total Assets' in balance_sheet.index and 'Total Current Liabilities' in balance_sheet.index else 0,
+                    "dilutedAverageShares": info.get('sharesOutstanding', 0),
+                })
+            
+            if not cash_flow.empty:
+                stock_data.update({
+                    "capex": abs(cash_flow.loc['Capital Expenditure'].iloc[0]) if 'Capital Expenditure' in cash_flow.index else 0,
+                    "changeInWorkingCapital": cash_flow.loc['Change In Working Capital'].iloc[0] if 'Change In Working Capital' in cash_flow.index else 0,
+                })
+                
+                # Calculate FCF
+                fcf = {}
+                for year in cash_flow.columns:
+                    operating_cash_flow = cash_flow.loc['Operating Cash Flow', year] if 'Operating Cash Flow' in cash_flow.index else 0
+                    capital_expenditure = abs(cash_flow.loc['Capital Expenditure', year]) if 'Capital Expenditure' in cash_flow.index else 0
+                    free_cash_flow = operating_cash_flow - capital_expenditure
+                    if not pd.isna(free_cash_flow):
+                        fcf[year.year] = free_cash_flow
+        except Exception as e:
+            logger.error(f"Error processing financial statements: {str(e)}")
+            # Set default values if financial statements can't be processed
+            stock_data.update({
+                "interestExpense": 0,
+                "taxProvision": 0,
+                "pretaxIncome": 0,
+                "ebit": 0,
+                "totalDebt": 0,
+                "cashAndCashEquivalents": 0,
+                "investedCapital": 0,
+                "dilutedAverageShares": info.get('sharesOutstanding', 0),
+                "capex": 0,
+                "changeInWorkingCapital": 0,
+            })
+            fcf = {}
 
         # Calculate financial metrics
         stock_data['equityCost'] = dcf.calculate_cost_of_equity(
-            (stock_data['treasuryRate']/100), 
+            stock_data['treasuryRate'], 
             stock_data['beta'], 
-            (stock_data['benchmarkEtfReturn']/100)
+            stock_data['benchmarkEtfReturn']
         )
         stock_data['debtCost'] = dcf.calculate_cost_of_debt(
             stock_data['interestExpense'], 
@@ -308,14 +343,6 @@ def filter_stock_financials(ticker: str) -> dict:
             stock_data['pretaxIncome']
         )
         stock_data['netDebt'] = stock_data['totalDebt'] - stock_data['cashAndCashEquivalents']
-
-        # Calculate FCF
-        fcf = {}
-        for timestamp, data in cash_flow.items():
-            free_cash_flow = data.get('FreeCashFlow', None)
-            if free_cash_flow and not pd.isna(free_cash_flow):
-                year = timestamp.year
-                fcf[year] = data['FreeCashFlow']
 
         # Calculate intrinsic value
         intrinsic_value = calculate_intrinsic_value_dcf(stock_data, fcf)
