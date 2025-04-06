@@ -357,25 +357,60 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
         beta = safe_get('beta', 1.0)
         interest_expense = safe_get('interestExpense', 0)
 
+        # Log input values for debugging
+        logger.info("Input Values:")
+        logger.info(f"  Market Cap: {market_cap:.2f}")
+        logger.info(f"  Total Debt: {total_debt:.2f}")
+        logger.info(f"  EBIT: {ebit:.2f}")
+        logger.info(f"  Tax Rate: {tax_rate:.4f}")
+        logger.info(f"  Net Debt: {net_debt:.2f}")
+        logger.info(f"  Shares Outstanding: {shares_outstanding:.2f}")
+        logger.info(f"  Invested Capital: {invested_capital:.2f}")
+        logger.info(f"  Capex: {capex:.2f}")
+        logger.info(f"  Change in WC: {change_in_working_capital:.2f}")
+        logger.info(f"  Treasury Rate: {treasury_rate:.4f}")
+        logger.info(f"  Benchmark Return: {benchmark_etf_return:.4f}")
+        logger.info(f"  Industry Rate: {industry_rate:.4f}")
+        logger.info(f"  Beta: {beta:.2f}")
+        logger.info(f"  Interest Expense: {interest_expense:.2f}")
+
         # Calculate cost of equity using CAPM
         try:
+            if total_debt <= 0:
+                total_debt = 1
+            if interest_expense <= 0:
+                interest_expense = total_debt * 0.05  # Assume 5% interest rate
+            
             cost_of_equity = dcf.calculate_cost_of_equity(treasury_rate, beta, benchmark_etf_return)
             cost_of_equity = max(min(cost_of_equity, 0.5), 0.01)  # Constrain between 1% and 50%
-        except Exception:
+            logger.info(f"Cost of Equity: {cost_of_equity:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating cost of equity: {str(e)}")
             cost_of_equity = 0.1  # Default cost of equity
 
         # Calculate cost of debt
         try:
             cost_of_debt = dcf.calculate_cost_of_debt(interest_expense, total_debt)
             cost_of_debt = max(min(cost_of_debt, 0.5), 0.01)  # Constrain between 1% and 50%
-        except Exception:
+            logger.info(f"Cost of Debt: {cost_of_debt:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating cost of debt: {str(e)}")
             cost_of_debt = 0.05  # Default cost of debt
 
         # Calculate WACC
         try:
+            if market_cap <= 0:
+                market_cap = 1
+            if total_debt <= 0:
+                total_debt = 1
+            if tax_rate < 0 or tax_rate > 1:
+                tax_rate = 0.21
+                
             wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
             wacc = max(min(wacc, 0.5), 0.01)  # Constrain between 1% and 50%
-        except Exception:
+            logger.info(f"WACC: {wacc:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating WACC: {str(e)}")
             wacc = 0.1  # Default WACC
 
         # Handle FCF data
@@ -388,21 +423,32 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
         # Ensure we have valid FCF values
         if not fcf_values or all(v == 0 for v in fcf_values):
             fcf_values = [0]
+        logger.info(f"FCF Values: {fcf_values}")
 
         # Calculate CAGR
         try:
-            estimated_cagr = dcf.calculate_cagr(fcf_values)
+            if len(fcf_values) >= 2 and all(v > 0 for v in fcf_values):
+                estimated_cagr = dcf.calculate_cagr(fcf_values)
+            else:
+                estimated_cagr = industry_rate
             estimated_cagr = max(min(estimated_cagr, 0.5), -0.5)  # Constrain between -50% and 50%
-        except Exception:
+            logger.info(f"CAGR: {estimated_cagr:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating CAGR: {str(e)}")
             estimated_cagr = industry_rate
 
         # Calculate reinvestment rate
         try:
-            estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
-                ebit, tax_rate, invested_capital, capex, change_in_working_capital
-            )
+            if invested_capital > 0 and ebit > 0:
+                estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
+                    ebit, tax_rate, invested_capital, capex, change_in_working_capital
+                )
+            else:
+                estimated_reinvestment_x_roic = 0.0
             estimated_reinvestment_x_roic = max(min(estimated_reinvestment_x_roic, 0.5), -0.5)
-        except Exception:
+            logger.info(f"Reinvestment Rate: {estimated_reinvestment_x_roic:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating reinvestment rate: {str(e)}")
             estimated_reinvestment_x_roic = 0.0
 
         # Calculate growth rate
@@ -410,29 +456,44 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
             # Weighted average of CAGR and reinvestment rate
             estimated_growth_rate = (0.7 * estimated_cagr) + (0.3 * estimated_reinvestment_x_roic)
             estimated_growth_rate = max(min(estimated_growth_rate, wacc - 0.01), 0.01)
-        except Exception:
+            logger.info(f"Growth Rate: {estimated_growth_rate:.4f}")
+        except Exception as e:
+            logger.error(f"Error calculating growth rate: {str(e)}")
             estimated_growth_rate = min(wacc - 0.01, 0.03)
 
         # Calculate future FCF
         try:
-            future_fcf_list = dcf.estimate_future_fcf(fcf_values)
-            if not future_fcf_list or any(np.isnan(fcf) or np.isinf(fcf) for fcf in future_fcf_list):
+            if fcf_values and fcf_values[-1] > 0:
+                future_fcf_list = dcf.estimate_future_fcf(fcf_values)
+            else:
                 future_fcf_list = [0]
-        except Exception:
+            logger.info(f"Future FCF List: {future_fcf_list}")
+        except Exception as e:
+            logger.error(f"Error calculating future FCF: {str(e)}")
             future_fcf_list = [0]
 
         # Calculate equity value
         try:
-            equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
+            if future_fcf_list and wacc > estimated_growth_rate:
+                equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
+            else:
+                equity_value = market_cap
             equity_value = max(min(equity_value, 1e15), -1e15)
-        except Exception:
+            logger.info(f"Equity Value: {equity_value:.2f}")
+        except Exception as e:
+            logger.error(f"Error calculating equity value: {str(e)}")
             equity_value = market_cap
 
         # Calculate intrinsic value
         try:
-            intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
+            if shares_outstanding > 0:
+                intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
+            else:
+                intrinsic_value = 0.0
             intrinsic_value = max(min(intrinsic_value, 1e6), -1e6)
-        except Exception:
+            logger.info(f"Intrinsic Value: {intrinsic_value:.2f}")
+        except Exception as e:
+            logger.error(f"Error calculating intrinsic value: {str(e)}")
             intrinsic_value = 0.0
 
         # Prepare response
