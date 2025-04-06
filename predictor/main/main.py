@@ -245,33 +245,39 @@ def filter_stock_financials(ticker: str):
         raise Exception(f"Failed to fetch stock financials: {str(e)}")
 
 def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):
-    market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
+    # Extract data using consistent camelCase keys
+    market_cap = data_source.get('marketCap', 0)
+    total_debt = data_source.get('totalDebt', 0)
+    cost_of_equity = data_source.get('equityCost', 0)
+    cost_of_debt = data_source.get('debtCost', 0)
+    tax_rate = data_source.get('taxRate', 0)
+    net_debt = data_source.get('netDebt', 0)
+    shares_outstanding = data_source.get('dilutedAverageShares', 0)
+    ebit = data_source.get('ebit', 0)
+    invested_capital = data_source.get('investedCapital', 0)
+    capex = data_source.get('capex', 0)
+    change_in_working_capital = data_source.get('changeInWorkingCapital', 0)
 
     # Calculate growth rates from FCF list
     fcf_list = list(fcf_list.values())
     future_fcf_list = dcf.estimate_future_fcf(fcf_list)
 
-    # Load Data
-    market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
-    ebit, invested_capital, capex, change_in_working_capital = data_source['ebit'], data_source['invested_capital'], data_source['capex'], data_source['change_in_working_capital']
-
     # estimate CAGR using dcf.calculator.cpp
     estimated_cagr = dcf.calculate_cagr(fcf_list)
 
     # estimate Reinvestment x ROIC using dcf.calculator.cpp
-    estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(ebit, tax_rate, invested_capital, capex, change_in_working_capital)
+    estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
+        ebit, tax_rate, invested_capital, capex, change_in_working_capital
+    )
 
     # estimate industry return
-    estimated_industry_rate = 0.05 # need to change to scraping my json data
+    estimated_industry_rate = data_source.get('industryRate', 0.05)
 
     # calculate wacc for comparison with growth rates
     wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
 
     # lets estimate our chosen growth rate
     estimated_growth_rate = estimate_growth_rate(data_source, fcf_list)
-
-    # Calculate WACC
-    wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
 
     # Calculate Intrinsic Value
     equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
@@ -293,27 +299,16 @@ def estimate_growth_rate(data_source: dict, fcf_list):
     """
     Estimates a Growth Rate between the Calculated CAGR, Calculated Reinvestment x ROIC, 
     and Long-Term Industry Growth Rate for the particular company.
-    
-    The function uses a weighted approach that considers:
-    1. Historical performance (CAGR)
-    2. Company's reinvestment efficiency (Reinvestment x ROIC)
-    3. Industry growth expectations
-    4. Company's competitive position (beta)
-    
-    Returns a growth rate that is:
-    - Conservative (below WACC)
-    - Realistic (based on multiple factors)
-    - Industry-appropriate
     """
     try:
-        # Load Data
+        # Load Data using consistent camelCase keys
         market_cap = data_source.get('marketCap', 0)
         total_debt = data_source.get('totalDebt', 0)
         cost_of_equity = data_source.get('equityCost', 0)
         cost_of_debt = data_source.get('debtCost', 0)
         tax_rate = data_source.get('taxRate', 0)
         beta = data_source.get('beta', 1.0)
-        industry_rate = data_source.get('industry_rate', 0.05)
+        industry_rate = data_source.get('industryRate', 0.05)
         
         # Calculate WACC for reference
         wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
@@ -364,7 +359,7 @@ def estimate_growth_rate(data_source: dict, fcf_list):
         # Final growth rate with constraints
         final_growth = min(max(weighted_growth, min_growth), max_growth)
         
-        logger.info(f"Growth rate estimation for {data_source.get('ticker', 'unknown')}:")
+        logger.info(f"Growth rate estimation:")
         logger.info(f"  - CAGR: {estimated_cagr:.2%}")
         logger.info(f"  - Reinvestment x ROIC: {estimated_reinvestment_x_roic:.2%}")
         logger.info(f"  - Industry Rate: {industry_rate:.2%}")
