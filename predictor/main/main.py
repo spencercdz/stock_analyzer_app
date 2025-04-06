@@ -156,7 +156,13 @@ def scrape_country_industry_data(ticker):
         ticker (str): Stock ticker symbol
         
     Returns:
-        tuple: (country, industry) where both are strings
+        dict: Dictionary containing:
+            - country (str): Country name
+            - industry (str): Industry name
+            - treasury_rate (float): 10-year treasury rate for the country
+            - benchmark_etf (str): Benchmark ETF for the country
+            - benchmark_etf_return (float): Expected return of the benchmark ETF
+            - industry_rate (float): Expected growth rate for the industry
     """
     try:
         # Get the directory of the current script
@@ -180,11 +186,45 @@ def scrape_country_industry_data(ticker):
         if industry not in data['industries']:
             industry = 'Technology'    # Default to Technology if industry not in our data
             
-        return country, industry
+        # Get country-specific data
+        country_data = data['countries'].get(country, data['countries']['United States'])
+        industry_data = data['industries'].get(industry, data['industries']['Technology'])
+        
+        # Convert percentage values to decimals
+        treasury_rate = country_data.get('10y_treasury_rate', 4.4970) / 100
+        benchmark_etf_return = country_data.get('benchmark_etf_return', 7.5) / 100
+        industry_rate = industry_data.get('growth_rate', 5.0) / 100
+        
+        result = {
+            'country': country,
+            'industry': industry,
+            'treasury_rate': treasury_rate,
+            'benchmark_etf': country_data.get('benchmark_etf', 'SPY'),
+            'benchmark_etf_return': benchmark_etf_return,
+            'industry_rate': industry_rate
+        }
+        
+        logger.info(f"Country/Industry data for {ticker}:")
+        logger.info(f"  Country: {country}")
+        logger.info(f"  Industry: {industry}")
+        logger.info(f"  Treasury Rate: {treasury_rate:.4f}")
+        logger.info(f"  Benchmark ETF: {result['benchmark_etf']}")
+        logger.info(f"  Benchmark Return: {benchmark_etf_return:.4f}")
+        logger.info(f"  Industry Rate: {industry_rate:.4f}")
+        
+        return result
         
     except Exception as e:
-        logging.error(f"Error scraping country industry data: {str(e)}. Using default values.")
-        return 'United States', 'Technology'  # Return default values on error
+        logger.error(f"Error scraping country industry data: {str(e)}. Using default values.")
+        # Return default US values
+        return {
+            'country': 'United States',
+            'industry': 'Technology',
+            'treasury_rate': 0.04497,  # 4.497%
+            'benchmark_etf': 'SPY',
+            'benchmark_etf_return': 0.075,  # 7.5%
+            'industry_rate': 0.05  # 5%
+        }
 
 def filter_stock_financials(ticker: str) -> dict:
     """
@@ -222,12 +262,16 @@ def filter_stock_financials(ticker: str) -> dict:
         }
         
         # Get country and industry data
-        country, industry = scrape_country_industry_data(ticker)
+        country_data = scrape_country_industry_data(ticker)
         
         # Update stock data with country/industry data
         stock_data.update({
-            "country": country,
-            "industry": industry,
+            "country": country_data['country'],
+            "industry": country_data['industry'],
+            "treasury_rate": country_data['treasury_rate'],
+            "benchmark_etf": country_data['benchmark_etf'],
+            "benchmark_etf_return": country_data['benchmark_etf_return'],
+            "industry_rate": country_data['industry_rate']
         })
         
         # Get financial statements
