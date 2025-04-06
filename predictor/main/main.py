@@ -140,21 +140,23 @@ def get_stock_valuation(ticker):
         return jsonify({"error": str(e)}), 500
 
 def scrape_country_industry_data(stock_data: dict):
-    try :
-        Country = stock_data['country']
-        Industry = stock_data['industry']
+    try:
+        # Get country and industry from the stock data
+        country = stock_data.get('country', 'US')  # Default to US if not found
+        industry = stock_data.get('industry', 'Technology')  # Default to Technology if not found
+        
         with open('country_industry_data.json', 'r') as file:
             data = json.load(file)
             result = {
-                'treasury_rate': data['countries'][Country]['10y_treasury_rate'],
-                'benchmark_etf': data['countries'][Country]['benchmark_etf'],
-                'benchmark_etf_return': data['countries'][Country]['benchmark_etf_return'],
-                'industry_rate': data['industries'][Industry]['growth_rate'],
+                'treasury_rate': data['countries'].get(country, {}).get('10y_treasury_rate', 0.05),
+                'benchmark_etf': data['countries'].get(country, {}).get('benchmark_etf', 'SPY'),
+                'benchmark_etf_return': data['countries'].get(country, {}).get('benchmark_etf_return', 0.05),
+                'industry_rate': data['industries'].get(industry, {}).get('growth_rate', 0.05),
             }
         return result
 
     except Exception as e:
-        logger.error(f"Error scraping country industry data for {stock_data['ticker']}: {str(e)}. Using default values.")
+        logger.error(f"Error scraping country industry data: {str(e)}. Using default values.")
         
         # Default values
         return {
@@ -168,50 +170,63 @@ def filter_stock_financials(ticker: str):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        income_statement = stock.get_income_stmt(as_dict=True, freq='yearly')
-        balance_sheet = stock.get_balance_sheet(as_dict=True, freq='yearly')
-        cash_flow = stock.get_cashflow(as_dict=True, freq='yearly')
-        country_industry_data = scrape_country_industry_data(info)
-
+        
+        if not info:
+            raise Exception("No stock information available")
+            
+        # Create initial stock data with basic info
         stock_data = {
-            # Relevant information from info
             "ticker": ticker,
             "marketCap": info.get('marketCap', 0),
             "beta": info.get('beta', 0) or 0,
-            "industry": info.get('industry', ''),
-            "country": info.get('country', ''),
+            "industry": info.get('industry', 'Technology'),
+            "country": info.get('country', 'US'),
             "peRatio": info.get('trailingPE', 0) or 0,
             "peRatioForward": info.get('forwardPE', 0) or 0,
-
+        }
+        
+        # Get country and industry data
+        country_industry_data = scrape_country_industry_data(stock_data)
+        
+        # Update stock data with country/industry data
+        stock_data.update(country_industry_data)
+        
+        # Get financial statements
+        income_statement = stock.get_income_stmt(as_dict=True, freq='yearly')
+        balance_sheet = stock.get_balance_sheet(as_dict=True, freq='yearly')
+        cash_flow = stock.get_cashflow(as_dict=True, freq='yearly')
+        
+        # Update with financial data
+        stock_data.update({
             "interestExpense": income_statement.get('InterestExpense', 0),
             "taxProvision": income_statement.get('TaxProvision', 0),
             "pretaxIncome": income_statement.get('PretaxIncome', 0),
             "dilutedAverageShares": income_statement.get('DilutedAverageShares', 0),
             "ebit": income_statement.get('EBIT', 0),
-
-            # Relevant information from balance_sheet
             "totalDebt": balance_sheet.get('TotalDebt', 0),
             "cashAndCashEquivalents": balance_sheet.get('CashAndCashEquivalents', 0),
             "investedCapital": balance_sheet.get('InvestedCapital', 0),
-            
-            # Relevant information from cash_flow
             "capex": cash_flow.get('CapitalExpenditure', 0),
             "changeInWorkingCapital": cash_flow.get('ChangeInWorkingCapital', 0),
+        })
 
-            # Country and Industry Data
-            "treasury_rate": country_industry_data['treasury_rate'],
-            "benchmark_etf": country_industry_data['benchmark_etf'],
-            "benchmark_etf_return": country_industry_data['benchmark_etf_return'],
-            "industry_rate": country_industry_data['industry_rate'],
-        }
-
-        # Add in calculations
-        stock_data['equityCost'] = dcf.calculate_cost_of_equity((stock_data['treasury_rate']/100), stock_data['beta'], (stock_data['benchmark_etf_return']/100))
-        stock_data['debtCost'] = dcf.calculate_cost_of_debt(stock_data['interestExpense'], stock_data['totalDebt'])
-        stock_data['taxRate'] = dcf.calculate_tax_rate(stock_data['taxProvision'], stock_data['pretaxIncome'])
+        # Calculate financial metrics
+        stock_data['equityCost'] = dcf.calculate_cost_of_equity(
+            (stock_data['treasury_rate']/100), 
+            stock_data['beta'], 
+            (stock_data['benchmark_etf_return']/100)
+        )
+        stock_data['debtCost'] = dcf.calculate_cost_of_debt(
+            stock_data['interestExpense'], 
+            stock_data['totalDebt']
+        )
+        stock_data['taxRate'] = dcf.calculate_tax_rate(
+            stock_data['taxProvision'], 
+            stock_data['pretaxIncome']
+        )
         stock_data['netDebt'] = stock_data['totalDebt'] - stock_data['cashAndCashEquivalents']
 
-        # Calculate fcf from cash flow list
+        # Calculate FCF
         fcf = {}
         for timestamp, data in cash_flow.items():
             free_cash_flow = data.get('FreeCashFlow', None)
