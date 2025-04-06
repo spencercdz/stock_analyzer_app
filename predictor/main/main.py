@@ -251,15 +251,24 @@ def filter_stock_financials(ticker: str) -> dict:
         if not info:
             raise Exception("No stock information available")
             
+        # Helper function to safely convert values to float
+        def safe_float(value, default=0.0):
+            try:
+                if pd.isna(value) or np.isinf(value):
+                    return default
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
         # Create initial stock data with basic info
         stock_data = {
             "ticker": ticker,
-            "marketCap": info.get('marketCap', 0),
-            "beta": info.get('beta', 0) or 0,
+            "marketCap": safe_float(info.get('marketCap', 0)),
+            "beta": safe_float(info.get('beta', 0)) or 0,
             "industry": info.get('industry', 'Technology'),
             "country": info.get('country', 'US'),
-            "peRatio": info.get('trailingPE', 0) or 0,
-            "peRatioForward": info.get('forwardPE', 0) or 0,
+            "peRatio": safe_float(info.get('trailingPE', 0)) or 0,
+            "peRatioForward": safe_float(info.get('forwardPE', 0)) or 0,
         }
         
         # Get country and industry data
@@ -269,10 +278,10 @@ def filter_stock_financials(ticker: str) -> dict:
         stock_data.update({
             "country": country_data['country'],
             "industry": country_data['industry'],
-            "treasuryRate": country_data['treasuryRate'],
+            "treasuryRate": safe_float(country_data['treasuryRate']),
             "benchmarkEtf": country_data['benchmarkEtf'],
-            "benchmarkEtfReturn": country_data['benchmarkEtfReturn'],
-            "industryRate": country_data['industryRate']
+            "benchmarkEtfReturn": safe_float(country_data['benchmarkEtfReturn']),
+            "industryRate": safe_float(country_data['industryRate'])
         })
         
         # Get financial statements
@@ -280,43 +289,79 @@ def filter_stock_financials(ticker: str) -> dict:
             # Get income statement
             income_stmt = stock.financials
             if not income_stmt.empty:
+                # Get raw values first
+                interest_expense = safe_float(income_stmt.loc['Interest Expense'].iloc[0]) if 'Interest Expense' in income_stmt.index else 0
+                tax_provision = safe_float(income_stmt.loc['Income Tax Expense'].iloc[0]) if 'Income Tax Expense' in income_stmt.index else 0
+                pretax_income = safe_float(income_stmt.loc['Pretax Income'].iloc[0]) if 'Pretax Income' in income_stmt.index else 0
+                ebit = safe_float(income_stmt.loc['EBIT'].iloc[0]) if 'EBIT' in income_stmt.index else 0
+
+                # Calculate tax rate with fallback
+                if pretax_income > 0:
+                    tax_rate = tax_provision / pretax_income
+                else:
+                    # Use effective tax rate from info if available
+                    tax_rate = safe_float(info.get('effectiveTaxRate', 0.21)) / 100
+                    if tax_rate <= 0:
+                        tax_rate = 0.21  # Default corporate tax rate
+
+                # Calculate interest expense with fallback
+                if interest_expense <= 0 and pretax_income > 0:
+                    # Estimate interest expense as 2% of pretax income
+                    interest_expense = pretax_income * 0.02
+
                 stock_data.update({
-                    "interestExpense": abs(income_stmt.loc['Interest Expense'].iloc[0]) if 'Interest Expense' in income_stmt.index else 0,
-                    "taxProvision": abs(income_stmt.loc['Income Tax Expense'].iloc[0]) if 'Income Tax Expense' in income_stmt.index else 0,
-                    "pretaxIncome": abs(income_stmt.loc['Pretax Income'].iloc[0]) if 'Pretax Income' in income_stmt.index else 0,
-                    "ebit": abs(income_stmt.loc['EBIT'].iloc[0]) if 'EBIT' in income_stmt.index else 0,
+                    "interestExpense": interest_expense,
+                    "taxProvision": tax_provision,
+                    "pretaxIncome": pretax_income,
+                    "ebit": ebit,
+                    "taxRate": tax_rate
                 })
             
             # Get balance sheet
             balance_sheet = stock.balance_sheet
             if not balance_sheet.empty:
+                total_debt = safe_float(balance_sheet.loc['Total Debt'].iloc[0]) if 'Total Debt' in balance_sheet.index else 0
+                cash = safe_float(balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]) if 'Cash And Cash Equivalents' in balance_sheet.index else 0
+                total_assets = safe_float(balance_sheet.loc['Total Assets'].iloc[0]) if 'Total Assets' in balance_sheet.index else 0
+                current_liabilities = safe_float(balance_sheet.loc['Total Current Liabilities'].iloc[0]) if 'Total Current Liabilities' in balance_sheet.index else 0
+
+                # Calculate invested capital with fallback
+                invested_capital = total_assets - current_liabilities
+                if invested_capital <= 0:
+                    # Estimate invested capital as 80% of total assets
+                    invested_capital = total_assets * 0.8
+
                 stock_data.update({
-                    "totalDebt": abs(balance_sheet.loc['Total Debt'].iloc[0]) if 'Total Debt' in balance_sheet.index else 0,
-                    "cashAndCashEquivalents": abs(balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]) if 'Cash And Cash Equivalents' in balance_sheet.index else 0,
-                    "investedCapital": abs(balance_sheet.loc['Total Assets'].iloc[0] - balance_sheet.loc['Total Current Liabilities'].iloc[0]) if 'Total Assets' in balance_sheet.index and 'Total Current Liabilities' in balance_sheet.index else 0,
-                    "dilutedAverageShares": info.get('sharesOutstanding', 0),
+                    "totalDebt": total_debt,
+                    "cashAndCashEquivalents": cash,
+                    "investedCapital": invested_capital,
+                    "dilutedAverageShares": safe_float(info.get('sharesOutstanding', 0)),
                 })
             
             # Get cash flow statement
             cash_flow = stock.cashflow
             if not cash_flow.empty:
+                capex = safe_float(cash_flow.loc['Capital Expenditure'].iloc[0]) if 'Capital Expenditure' in cash_flow.index else 0
+                change_in_wc = safe_float(cash_flow.loc['Change In Working Capital'].iloc[0]) if 'Change In Working Capital' in cash_flow.index else 0
+
                 stock_data.update({
-                    "capex": abs(cash_flow.loc['Capital Expenditure'].iloc[0]) if 'Capital Expenditure' in cash_flow.index else 0,
-                    "changeInWorkingCapital": abs(cash_flow.loc['Change In Working Capital'].iloc[0]) if 'Change In Working Capital' in cash_flow.index else 0,
+                    "capex": capex,
+                    "changeInWorkingCapital": change_in_wc,
                 })
                 
                 # Calculate FCF
                 fcf = {}
                 for year in cash_flow.columns:
-                    operating_cash_flow = abs(cash_flow.loc['Operating Cash Flow', year]) if 'Operating Cash Flow' in cash_flow.index else 0
-                    capital_expenditure = abs(cash_flow.loc['Capital Expenditure', year]) if 'Capital Expenditure' in cash_flow.index else 0
+                    operating_cash_flow = safe_float(cash_flow.loc['Operating Cash Flow', year]) if 'Operating Cash Flow' in cash_flow.index else 0
+                    capital_expenditure = safe_float(cash_flow.loc['Capital Expenditure', year]) if 'Capital Expenditure' in cash_flow.index else 0
                     free_cash_flow = operating_cash_flow - capital_expenditure
-                    if not pd.isna(free_cash_flow):
+                    if not pd.isna(free_cash_flow) and free_cash_flow > 0:
                         fcf[year.year] = free_cash_flow
                         
                 # Ensure we have at least one FCF value
                 if not fcf:
-                    fcf = {datetime.now().year: stock_data.get('ebit', 0) * 0.8}  # Estimate FCF as 80% of EBIT if no FCF data
+                    # Estimate FCF as 80% of EBIT if no FCF data
+                    fcf = {datetime.now().year: stock_data.get('ebit', 0) * 0.8}
                     
         except Exception as e:
             logger.error(f"Error processing financial statements: {str(e)}")
@@ -329,31 +374,62 @@ def filter_stock_financials(ticker: str) -> dict:
                 "totalDebt": 0,
                 "cashAndCashEquivalents": 0,
                 "investedCapital": 0,
-                "dilutedAverageShares": info.get('sharesOutstanding', 0),
+                "dilutedAverageShares": safe_float(info.get('sharesOutstanding', 0)),
                 "capex": 0,
                 "changeInWorkingCapital": 0,
+                "taxRate": 0.21  # Default corporate tax rate
             })
             fcf = {datetime.now().year: stock_data.get('marketCap', 0) * 0.05}  # Estimate FCF as 5% of market cap if no data
 
         # Calculate financial metrics
-        stock_data['equityCost'] = dcf.calculate_cost_of_equity(
-            stock_data['treasuryRate'], 
-            stock_data['beta'], 
-            stock_data['benchmarkEtfReturn']
-        )
-        stock_data['debtCost'] = dcf.calculate_cost_of_debt(
-            stock_data['interestExpense'], 
-            stock_data['totalDebt']
-        )
-        stock_data['taxRate'] = dcf.calculate_tax_rate(
-            stock_data['taxProvision'], 
-            stock_data['pretaxIncome']
-        )
-        stock_data['netDebt'] = stock_data['totalDebt'] - stock_data['cashAndCashEquivalents']
+        try:
+            # Ensure we have valid values for calculations
+            if stock_data['totalDebt'] <= 0:
+                stock_data['totalDebt'] = stock_data['marketCap'] * 0.1  # Estimate debt as 10% of market cap
+            if stock_data['interestExpense'] <= 0:
+                stock_data['interestExpense'] = stock_data['totalDebt'] * 0.05  # Estimate interest as 5% of debt
+
+            stock_data['equityCost'] = safe_float(dcf.calculate_cost_of_equity(
+                stock_data['treasuryRate'], 
+                stock_data['beta'], 
+                stock_data['benchmarkEtfReturn']
+            ))
+            stock_data['debtCost'] = safe_float(dcf.calculate_cost_of_debt(
+                stock_data['interestExpense'], 
+                stock_data['totalDebt']
+            ))
+            stock_data['netDebt'] = safe_float(stock_data['totalDebt'] - stock_data['cashAndCashEquivalents'])
+        except Exception as e:
+            logger.error(f"Error calculating financial metrics: {str(e)}")
+            stock_data.update({
+                'equityCost': 0.1,
+                'debtCost': 0.05,
+                'netDebt': 0
+            })
 
         # Calculate intrinsic value
-        intrinsic_value = calculate_intrinsic_value_dcf(stock_data, fcf)
-        stock_data.update(intrinsic_value)
+        try:
+            intrinsic_value = calculate_intrinsic_value_dcf(stock_data, fcf)
+            # Ensure all values in intrinsic_value are valid numbers
+            for key, value in intrinsic_value.items():
+                intrinsic_value[key] = safe_float(value)
+            stock_data.update(intrinsic_value)
+        except Exception as e:
+            logger.error(f"Error calculating intrinsic value: {str(e)}")
+            stock_data.update({
+                'wacc': 0.1,
+                'industryRate': 0.05,
+                'reinvestmentRate': 0.0,
+                'cagr': 0.0,
+                'chosenGrowthRate': 0.03,
+                'intrinsicValue': 0.0,
+                'equityValue': 0.0
+            })
+
+        # Final validation of all numeric values
+        for key, value in stock_data.items():
+            if isinstance(value, (int, float)):
+                stock_data[key] = safe_float(value)
 
         return stock_data
     
