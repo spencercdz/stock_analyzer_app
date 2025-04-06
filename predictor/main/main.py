@@ -148,49 +148,43 @@ def get_stock_valuation(ticker):
         logger.error(f"Error fetching stock valuation for {ticker}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-def scrape_country_industry_data(stock_data: dict) -> dict:
+def scrape_country_industry_data(ticker):
     """
-    Retrieves country and industry-specific data for stock valuation calculations.
+    Scrapes country and industry data for a given ticker.
     
     Args:
-        stock_data (dict): Dictionary containing stock information including country and industry.
+        ticker (str): Stock ticker symbol
         
     Returns:
-        dict: Dictionary containing:
-            - treasury_rate (float): 10-year treasury rate for the country
-            - benchmark_etf (str): Benchmark ETF for the country
-            - benchmark_etf_return (float): Expected return of the benchmark ETF
-            - industry_rate (float): Expected growth rate for the industry
-            
-    Note:
-        If the country or industry is not found in the data file, default values are used:
-        - Default country: 'US'
-        - Default industry: 'Technology'
-        - Default rates: 0.05 (5%)
+        tuple: (country, industry) where both are strings
     """
     try:
-        # Get country and industry from the stock data
-        country = stock_data.get('country', 'US')  # Default to US if not found
-        industry = stock_data.get('industry', 'Technology')  # Default to Technology if not found
+        # Get the directory of the current script
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_file = os.path.join(current_dir, 'country_industry_data.json')
         
-        with open('country_industry_data.json', 'r') as file:
+        with open(data_file, 'r') as file:
             data = json.load(file)
-            result = {
-                'treasury_rate': data['countries'].get(country, {}).get('10y_treasury_rate', 0.05),
-                'benchmark_etf': data['countries'].get(country, {}).get('benchmark_etf', 'SPY'),
-                'benchmark_etf_return': data['countries'].get(country, {}).get('benchmark_etf_return', 0.05),
-                'industry_rate': data['industries'].get(industry, {}).get('growth_rate', 0.05),
-            }
-        return result
-
+            
+        # Get stock info to determine country and industry
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        # Get country and industry from stock info
+        country = info.get('country', 'United States')  # Default to US if not found
+        industry = info.get('industry', 'Technology')   # Default to Technology if not found
+        
+        # Validate country and industry against our data
+        if country not in data['countries']:
+            country = 'United States'  # Default to US if country not in our data
+        if industry not in data['industries']:
+            industry = 'Technology'    # Default to Technology if industry not in our data
+            
+        return country, industry
+        
     except Exception as e:
-        logger.error(f"Error scraping country industry data: {str(e)}. Using default values.")
-        return {
-            'treasury_rate': 0.05,
-            'benchmark_etf': 'SPY',
-            'benchmark_etf_return': 0.05,
-            'industry_rate': 0.05,
-        }
+        logging.error(f"Error scraping country industry data: {str(e)}. Using default values.")
+        return 'United States', 'Technology'  # Return default values on error
 
 def filter_stock_financials(ticker: str) -> dict:
     """
@@ -228,10 +222,13 @@ def filter_stock_financials(ticker: str) -> dict:
         }
         
         # Get country and industry data
-        country_industry_data = scrape_country_industry_data(stock_data)
+        country, industry = scrape_country_industry_data(ticker)
         
         # Update stock data with country/industry data
-        stock_data.update(country_industry_data)
+        stock_data.update({
+            "country": country,
+            "industry": industry,
+        })
         
         # Get financial statements
         income_statement = stock.get_income_stmt(as_dict=True, freq='yearly')
@@ -303,60 +300,99 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
             - chosenGrowthRate (float): Estimated growth rate
             - intrinsicValue (float): Calculated intrinsic value per share
             - equityValue (float): Total equity value
-            
-    Note:
-        This function uses multiple valuation approaches and combines them to estimate
-        the intrinsic value of the stock.
     """
-    # Extract data using consistent camelCase keys
-    market_cap = data_source.get('marketCap', 0)
-    total_debt = data_source.get('totalDebt', 0)
-    cost_of_equity = data_source.get('equityCost', 0)
-    cost_of_debt = data_source.get('debtCost', 0)
-    tax_rate = data_source.get('taxRate', 0)
-    net_debt = data_source.get('netDebt', 0)
-    shares_outstanding = data_source.get('dilutedAverageShares', 0)
-    ebit = data_source.get('ebit', 0)
-    invested_capital = data_source.get('investedCapital', 0)
-    capex = data_source.get('capex', 0)
-    change_in_working_capital = data_source.get('changeInWorkingCapital', 0)
+    try:
+        # Extract data using consistent camelCase keys
+        market_cap = data_source.get('marketCap', 0)
+        total_debt = data_source.get('totalDebt', 0)
+        cost_of_equity = data_source.get('equityCost', 0)
+        cost_of_debt = data_source.get('debtCost', 0)
+        tax_rate = data_source.get('taxRate', 0)
+        net_debt = data_source.get('netDebt', 0)
+        shares_outstanding = data_source.get('dilutedAverageShares', 0)
+        ebit = data_source.get('ebit', 0)
+        invested_capital = data_source.get('investedCapital', 0)
+        capex = data_source.get('capex', 0)
+        change_in_working_capital = data_source.get('changeInWorkingCapital', 0)
 
-    # Calculate growth rates from FCF list
-    fcf_list = list(fcf_list.values())
-    future_fcf_list = dcf.estimate_future_fcf(fcf_list)
+        # Validate numeric values
+        def validate_numeric(value, default=0):
+            try:
+                value = float(value)
+                return value if not np.isnan(value) else default
+            except (ValueError, TypeError):
+                return default
 
-    # estimate CAGR using dcf.calculator.cpp
-    estimated_cagr = dcf.calculate_cagr(fcf_list)
+        market_cap = validate_numeric(market_cap)
+        total_debt = validate_numeric(total_debt)
+        cost_of_equity = validate_numeric(cost_of_equity)
+        cost_of_debt = validate_numeric(cost_of_debt)
+        tax_rate = validate_numeric(tax_rate)
+        net_debt = validate_numeric(net_debt)
+        shares_outstanding = validate_numeric(shares_outstanding)
+        ebit = validate_numeric(ebit)
+        invested_capital = validate_numeric(invested_capital)
+        capex = validate_numeric(capex)
+        change_in_working_capital = validate_numeric(change_in_working_capital)
 
-    # estimate Reinvestment x ROIC using dcf.calculator.cpp
-    estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
-        ebit, tax_rate, invested_capital, capex, change_in_working_capital
-    )
+        # Calculate growth rates from FCF list
+        fcf_values = []
+        if isinstance(fcf_list, dict):
+            fcf_values = [validate_numeric(v) for v in fcf_list.values()]
+        elif isinstance(fcf_list, list):
+            fcf_values = [validate_numeric(v) for v in fcf_list]
 
-    # estimate industry return
-    estimated_industry_rate = data_source.get('industryRate', 0.05)
+        # Ensure we have valid FCF values
+        if not fcf_values or all(v == 0 for v in fcf_values):
+            fcf_values = [0]  # Default to zero if no valid FCF values
 
-    # calculate wacc for comparison with growth rates
-    wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
+        future_fcf_list = dcf.estimate_future_fcf(fcf_values)
 
-    # lets estimate our chosen growth rate
-    estimated_growth_rate = estimate_growth_rate(data_source, fcf_list)
+        # Calculate metrics with validation
+        estimated_cagr = validate_numeric(dcf.calculate_cagr(fcf_values))
+        estimated_reinvestment_x_roic = validate_numeric(
+            dcf.calculate_reinvestment_x_roic(
+                ebit, tax_rate, invested_capital, capex, change_in_working_capital
+            )
+        )
+        estimated_industry_rate = validate_numeric(data_source.get('industryRate', 0.05))
+        wacc = validate_numeric(dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate))
+        estimated_growth_rate = validate_numeric(estimate_growth_rate(data_source, fcf_list))
 
-    # Calculate Intrinsic Value
-    equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
-    intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
+        # Calculate Intrinsic Value with validation
+        equity_value = validate_numeric(dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt))
+        intrinsic_value = validate_numeric(dcf.calculate_intrinsic_value(equity_value, shares_outstanding))
 
-    data = {
-        'wacc': wacc,
-        'industryRate': estimated_industry_rate,
-        'reinvestmentRate': estimated_reinvestment_x_roic,
-        'cagr': estimated_cagr,
-        'chosenGrowthRate': estimated_growth_rate,
-        'intrinsicValue': intrinsic_value,
-        'equityValue': equity_value,
-    }
-    
-    return data
+        # Prepare response with validated values
+        data = {
+            'wacc': wacc,
+            'industryRate': estimated_industry_rate,
+            'reinvestmentRate': estimated_reinvestment_x_roic,
+            'cagr': estimated_cagr,
+            'chosenGrowthRate': estimated_growth_rate,
+            'intrinsicValue': intrinsic_value,
+            'equityValue': equity_value,
+        }
+
+        # Log the results for debugging
+        logger.info("DCF Calculation Results:")
+        for key, value in data.items():
+            logger.info(f"  {key}: {value:.4f}")
+
+        return data
+
+    except Exception as e:
+        logger.error(f"Error in calculate_intrinsic_value_dcf: {str(e)}")
+        # Return default values in case of error
+        return {
+            'wacc': 0.1,
+            'industryRate': 0.05,
+            'reinvestmentRate': 0.0,
+            'cagr': 0.0,
+            'chosenGrowthRate': 0.03,
+            'intrinsicValue': 0.0,
+            'equityValue': 0.0,
+        }
 
 def estimate_growth_rate(data_source: dict, fcf_list: dict) -> float:
     """
@@ -394,8 +430,13 @@ def estimate_growth_rate(data_source: dict, fcf_list: dict) -> float:
         # Calculate WACC for reference
         wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
         
+        # Handle FCF data - convert to list if it's a dictionary
+        if isinstance(fcf_list, dict):
+            fcf_values = list(fcf_list.values())
+        else:
+            fcf_values = fcf_list if isinstance(fcf_list, list) else []
+            
         # Calculate historical CAGR
-        fcf_values = list(fcf_list.values())
         if len(fcf_values) >= 2:
             estimated_cagr = dcf.calculate_cagr(fcf_values)
         else:
