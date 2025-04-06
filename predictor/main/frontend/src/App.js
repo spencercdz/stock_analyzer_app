@@ -99,6 +99,7 @@ function App() {
       console.log(`Using cached data for ${ticker}`);
       setStockData(cachedData.stockData);
       setPriceHistory(cachedData.priceHistory);
+      setValuationData(cachedData.valuationData);
       setIsLoading(false);
       isFetchingRef.current = false;
       return;
@@ -121,11 +122,11 @@ function App() {
       console.log("History data received:", historyData);
 
       // Fetch valuation data
-      const valuationUrl = `%{apiUrl}/api/stock/${ticker.toUpperCase()}/valuation`;
-      console.log(`Fetching stock valuation from: ${valuationUrl}`);
+      const valuationUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/valuation`;
+      console.log(`Fetching valuation data from: ${valuationUrl}`);
       const valuationResponse = await fetchWithRetry(valuationUrl);
       const valuationData = await valuationResponse.json();
-      console.log("Valuation data received:", valuationData)
+      console.log("Valuation data received:", valuationData);
 
       // Update state
       setStockData(data);
@@ -353,7 +354,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">Enter a stock ticker to view information</div>
+            <div className="placeholder-message">An error occurred while fetching stock data. Please try again.</div>
           )}
         </Box>
         <Box title="Valuation Summary">
@@ -395,7 +396,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">Enter a stock ticker to view valuation data</div>
+            <div className="placeholder-message">An error occurred while fetching valuation data. Please try again.</div>
           )}
         </Box>
         <Box title="Stock Price Chart">
@@ -445,7 +446,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">Enter a stock ticker to view price chart</div>
+            <div className="placeholder-message">An error occurred while fetching price chart. Please try again.</div>
           )}
         </Box>
       </GridLayout>

@@ -1,5 +1,4 @@
-# main.py
-
+# Backend: main.py
 from flask_cors import CORS
 from flask import Flask, request, render_template, jsonify
 import os
@@ -125,17 +124,20 @@ def get_stock_history(ticker):
         logger.error(f"Error fetching stock history for {ticker}: {str(e)}")
         return jsonify({"error": f"Failed to fetch stock history: {str(e)}"}), 500
 
+# Frontend: get_stock_valuation
 @app.route('/api/stock/<ticker>/valuation', methods=['GET'])
 def get_stock_valuation(ticker):
     logger.info(f"Stock valuation requested for ticker: {ticker}")
 
     try:
-        stock_financials, fcf_list = filter_stock_financials(ticker)
+        stock_financials = filter_stock_financials(ticker)
+        if not stock_financials:
+            return jsonify({"error": "Failed to fetch stock financials"}), 500
         return jsonify(stock_financials)
 
     except Exception as e:
         logger.error(f"Error fetching stock valuation for {ticker}: {str(e)}")
-        return jsonify({"error": f"Failed to fetch stock valuation: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 def scrape_country_industry_data(stock_data: dict):
     try :
@@ -204,7 +206,7 @@ def filter_stock_financials(ticker: str):
         }
 
         # Add in calculations
-        stock_data['equityCost'] = dcf.calculate_cost_of_equity((stock_data['treasury_rate']/100), stock_data['beta'], (stock_data['benchmark_etf_return']/100)) # rfr = 4, mr = 9.5. for now we fix the Treasury Rate and Market Return, have to make a separate scraper to get these values for the specific country the company is in
+        stock_data['equityCost'] = dcf.calculate_cost_of_equity((stock_data['treasury_rate']/100), stock_data['beta'], (stock_data['benchmark_etf_return']/100))
         stock_data['debtCost'] = dcf.calculate_cost_of_debt(stock_data['interestExpense'], stock_data['totalDebt'])
         stock_data['taxRate'] = dcf.calculate_tax_rate(stock_data['taxProvision'], stock_data['pretaxIncome'])
         stock_data['netDebt'] = stock_data['totalDebt'] - stock_data['cashAndCashEquivalents']
@@ -225,7 +227,7 @@ def filter_stock_financials(ticker: str):
     
     except Exception as e:
         logger.error(f"Error fetching stock financials for {ticker}: {str(e)}")
-        return None, None
+        raise Exception(f"Failed to fetch stock financials: {str(e)}")
 
 def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):
     market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
