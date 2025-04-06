@@ -9,6 +9,7 @@ import numpy as np
 import json
 import time
 import logging
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -276,41 +277,47 @@ def filter_stock_financials(ticker: str) -> dict:
         
         # Get financial statements
         try:
+            # Get income statement
             income_stmt = stock.financials
-            balance_sheet = stock.balance_sheet
-            cash_flow = stock.cashflow
-            
-            # Get the most recent year's data
             if not income_stmt.empty:
                 stock_data.update({
-                    "interestExpense": income_stmt.loc['Interest Expense'].iloc[0] if 'Interest Expense' in income_stmt.index else 0,
-                    "taxProvision": income_stmt.loc['Income Tax Expense'].iloc[0] if 'Income Tax Expense' in income_stmt.index else 0,
-                    "pretaxIncome": income_stmt.loc['Pretax Income'].iloc[0] if 'Pretax Income' in income_stmt.index else 0,
-                    "ebit": income_stmt.loc['EBIT'].iloc[0] if 'EBIT' in income_stmt.index else 0,
+                    "interestExpense": abs(income_stmt.loc['Interest Expense'].iloc[0]) if 'Interest Expense' in income_stmt.index else 0,
+                    "taxProvision": abs(income_stmt.loc['Income Tax Expense'].iloc[0]) if 'Income Tax Expense' in income_stmt.index else 0,
+                    "pretaxIncome": abs(income_stmt.loc['Pretax Income'].iloc[0]) if 'Pretax Income' in income_stmt.index else 0,
+                    "ebit": abs(income_stmt.loc['EBIT'].iloc[0]) if 'EBIT' in income_stmt.index else 0,
                 })
             
+            # Get balance sheet
+            balance_sheet = stock.balance_sheet
             if not balance_sheet.empty:
                 stock_data.update({
-                    "totalDebt": balance_sheet.loc['Total Debt'].iloc[0] if 'Total Debt' in balance_sheet.index else 0,
-                    "cashAndCashEquivalents": balance_sheet.loc['Cash And Cash Equivalents'].iloc[0] if 'Cash And Cash Equivalents' in balance_sheet.index else 0,
-                    "investedCapital": balance_sheet.loc['Total Assets'].iloc[0] - balance_sheet.loc['Total Current Liabilities'].iloc[0] if 'Total Assets' in balance_sheet.index and 'Total Current Liabilities' in balance_sheet.index else 0,
+                    "totalDebt": abs(balance_sheet.loc['Total Debt'].iloc[0]) if 'Total Debt' in balance_sheet.index else 0,
+                    "cashAndCashEquivalents": abs(balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]) if 'Cash And Cash Equivalents' in balance_sheet.index else 0,
+                    "investedCapital": abs(balance_sheet.loc['Total Assets'].iloc[0] - balance_sheet.loc['Total Current Liabilities'].iloc[0]) if 'Total Assets' in balance_sheet.index and 'Total Current Liabilities' in balance_sheet.index else 0,
                     "dilutedAverageShares": info.get('sharesOutstanding', 0),
                 })
             
+            # Get cash flow statement
+            cash_flow = stock.cashflow
             if not cash_flow.empty:
                 stock_data.update({
                     "capex": abs(cash_flow.loc['Capital Expenditure'].iloc[0]) if 'Capital Expenditure' in cash_flow.index else 0,
-                    "changeInWorkingCapital": cash_flow.loc['Change In Working Capital'].iloc[0] if 'Change In Working Capital' in cash_flow.index else 0,
+                    "changeInWorkingCapital": abs(cash_flow.loc['Change In Working Capital'].iloc[0]) if 'Change In Working Capital' in cash_flow.index else 0,
                 })
                 
                 # Calculate FCF
                 fcf = {}
                 for year in cash_flow.columns:
-                    operating_cash_flow = cash_flow.loc['Operating Cash Flow', year] if 'Operating Cash Flow' in cash_flow.index else 0
+                    operating_cash_flow = abs(cash_flow.loc['Operating Cash Flow', year]) if 'Operating Cash Flow' in cash_flow.index else 0
                     capital_expenditure = abs(cash_flow.loc['Capital Expenditure', year]) if 'Capital Expenditure' in cash_flow.index else 0
                     free_cash_flow = operating_cash_flow - capital_expenditure
                     if not pd.isna(free_cash_flow):
                         fcf[year.year] = free_cash_flow
+                        
+                # Ensure we have at least one FCF value
+                if not fcf:
+                    fcf = {datetime.now().year: stock_data.get('ebit', 0) * 0.8}  # Estimate FCF as 80% of EBIT if no FCF data
+                    
         except Exception as e:
             logger.error(f"Error processing financial statements: {str(e)}")
             # Set default values if financial statements can't be processed
@@ -326,7 +333,7 @@ def filter_stock_financials(ticker: str) -> dict:
                 "capex": 0,
                 "changeInWorkingCapital": 0,
             })
-            fcf = {}
+            fcf = {datetime.now().year: stock_data.get('marketCap', 0) * 0.05}  # Estimate FCF as 5% of market cap if no data
 
         # Calculate financial metrics
         stock_data['equityCost'] = dcf.calculate_cost_of_equity(
@@ -357,6 +364,17 @@ def filter_stock_financials(ticker: str) -> dict:
 def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
     """
     Calculates the intrinsic value of a stock using the Discounted Cash Flow (DCF) method.
+    
+    Args:
+        data_source (dict): Dictionary containing financial data
+        fcf_list (dict): Dictionary of free cash flows by year
+        
+    Returns:
+        dict: Dictionary containing calculated values including:
+            - WACC (Weighted Average Cost of Capital)
+            - Growth rate
+            - Intrinsic value
+            - Equity value
     """
     try:
         # Extract and validate data
@@ -449,7 +467,7 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
 
         # Ensure we have valid FCF values
         if not fcf_values or all(v == 0 for v in fcf_values):
-            fcf_values = [0]
+            fcf_values = [ebit * 0.8]  # Estimate FCF as 80% of EBIT if no FCF data
         logger.info(f"FCF Values: {fcf_values}")
 
         # Calculate CAGR
@@ -493,11 +511,11 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
             if fcf_values and fcf_values[-1] > 0:
                 future_fcf_list = dcf.estimate_future_fcf(fcf_values)
             else:
-                future_fcf_list = [0]
+                future_fcf_list = [ebit * 0.8]  # Estimate FCF as 80% of EBIT if no FCF data
             logger.info(f"Future FCF List: {future_fcf_list}")
         except Exception as e:
             logger.error(f"Error calculating future FCF: {str(e)}")
-            future_fcf_list = [0]
+            future_fcf_list = [ebit * 0.8]
 
         # Calculate equity value
         try:
