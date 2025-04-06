@@ -344,31 +344,39 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
         # Extract and validate all required values
         market_cap = safe_get('marketCap')
         total_debt = safe_get('totalDebt')
-        cost_of_equity = safe_get('equityCost')
-        cost_of_debt = safe_get('debtCost')
+        ebit = safe_get('ebit')
         tax_rate = safe_get('taxRate')
         net_debt = safe_get('netDebt')
         shares_outstanding = safe_get('dilutedAverageShares')
-        ebit = safe_get('ebit')
         invested_capital = safe_get('investedCapital')
         capex = safe_get('capex')
         change_in_working_capital = safe_get('changeInWorkingCapital')
-        treasury_rate = safe_get('treasuryRate', 0.04497)  # Default US treasury rate
-        benchmark_etf_return = safe_get('benchmarkEtfReturn', 0.075)  # Default US market return
-        industry_rate = safe_get('industryRate', 0.05)  # Default industry growth rate
+        treasury_rate = safe_get('treasuryRate', 0.04497)
+        benchmark_etf_return = safe_get('benchmarkEtfReturn', 0.075)
+        industry_rate = safe_get('industryRate', 0.05)
+        beta = safe_get('beta', 1.0)
+        interest_expense = safe_get('interestExpense', 0)
 
-        # Ensure we have valid values for critical calculations
-        if market_cap <= 0:
-            market_cap = 1  # Prevent division by zero
-        if shares_outstanding <= 0:
-            shares_outstanding = 1  # Prevent division by zero
+        # Calculate cost of equity using CAPM
+        try:
+            cost_of_equity = dcf.calculate_cost_of_equity(treasury_rate, beta, benchmark_etf_return)
+            cost_of_equity = max(min(cost_of_equity, 0.5), 0.01)  # Constrain between 1% and 50%
+        except Exception:
+            cost_of_equity = 0.1  # Default cost of equity
 
-        # Calculate WACC with validation
+        # Calculate cost of debt
+        try:
+            cost_of_debt = dcf.calculate_cost_of_debt(interest_expense, total_debt)
+            cost_of_debt = max(min(cost_of_debt, 0.5), 0.01)  # Constrain between 1% and 50%
+        except Exception:
+            cost_of_debt = 0.05  # Default cost of debt
+
+        # Calculate WACC
         try:
             wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
             wacc = max(min(wacc, 0.5), 0.01)  # Constrain between 1% and 50%
         except Exception:
-            wacc = 0.1  # Default WACC if calculation fails
+            wacc = 0.1  # Default WACC
 
         # Handle FCF data
         fcf_values = []
@@ -379,53 +387,55 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
 
         # Ensure we have valid FCF values
         if not fcf_values or all(v == 0 for v in fcf_values):
-            fcf_values = [0]  # Default to zero if no valid FCF values
+            fcf_values = [0]
 
-        # Calculate growth metrics with validation
+        # Calculate CAGR
         try:
             estimated_cagr = dcf.calculate_cagr(fcf_values)
             estimated_cagr = max(min(estimated_cagr, 0.5), -0.5)  # Constrain between -50% and 50%
         except Exception:
-            estimated_cagr = industry_rate  # Default to industry rate if calculation fails
+            estimated_cagr = industry_rate
 
+        # Calculate reinvestment rate
         try:
             estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
                 ebit, tax_rate, invested_capital, capex, change_in_working_capital
             )
             estimated_reinvestment_x_roic = max(min(estimated_reinvestment_x_roic, 0.5), -0.5)
         except Exception:
-            estimated_reinvestment_x_roic = 0.0  # Default to 0 if calculation fails
+            estimated_reinvestment_x_roic = 0.0
 
-        # Calculate growth rate with validation
+        # Calculate growth rate
         try:
-            estimated_growth_rate = estimate_growth_rate(data_source, fcf_list)
+            # Weighted average of CAGR and reinvestment rate
+            estimated_growth_rate = (0.7 * estimated_cagr) + (0.3 * estimated_reinvestment_x_roic)
             estimated_growth_rate = max(min(estimated_growth_rate, wacc - 0.01), 0.01)
         except Exception:
-            estimated_growth_rate = min(wacc - 0.01, 0.03)  # Default to 3% or WACC-1%
+            estimated_growth_rate = min(wacc - 0.01, 0.03)
 
-        # Calculate future FCF with validation
+        # Calculate future FCF
         try:
             future_fcf_list = dcf.estimate_future_fcf(fcf_values)
             if not future_fcf_list or any(np.isnan(fcf) or np.isinf(fcf) for fcf in future_fcf_list):
-                future_fcf_list = [0]  # Default to zero if invalid
+                future_fcf_list = [0]
         except Exception:
-            future_fcf_list = [0]  # Default to zero if calculation fails
+            future_fcf_list = [0]
 
-        # Calculate equity value with validation
+        # Calculate equity value
         try:
             equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
-            equity_value = max(min(equity_value, 1e15), -1e15)  # Constrain to reasonable range
+            equity_value = max(min(equity_value, 1e15), -1e15)
         except Exception:
-            equity_value = market_cap  # Default to market cap if calculation fails
+            equity_value = market_cap
 
-        # Calculate intrinsic value with validation
+        # Calculate intrinsic value
         try:
             intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
-            intrinsic_value = max(min(intrinsic_value, 1e6), -1e6)  # Constrain to reasonable range
+            intrinsic_value = max(min(intrinsic_value, 1e6), -1e6)
         except Exception:
-            intrinsic_value = 0.0  # Default to zero if calculation fails
+            intrinsic_value = 0.0
 
-        # Prepare response with validated values
+        # Prepare response
         data = {
             'wacc': wacc,
             'industryRate': industry_rate,
@@ -436,7 +446,7 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
             'equityValue': equity_value,
         }
 
-        # Log the results for debugging
+        # Log results
         logger.info("DCF Calculation Results:")
         for key, value in data.items():
             logger.info(f"  {key}: {value:.4f}")
@@ -445,7 +455,6 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
 
     except Exception as e:
         logger.error(f"Error in calculate_intrinsic_value_dcf: {str(e)}")
-        # Return default values in case of error
         return {
             'wacc': 0.1,
             'industryRate': 0.05,
