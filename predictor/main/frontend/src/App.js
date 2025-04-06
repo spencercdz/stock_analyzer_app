@@ -27,6 +27,7 @@ ChartJS.register(
 function App() {
   const [ticker, setTicker] = useState("");
   const [stockData, setStockData] = useState(null);
+  const [valuationData, setValuationData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState('1D');
@@ -119,14 +120,23 @@ function App() {
       const historyData = await historyResponse.json();
       console.log("History data received:", historyData);
 
+      // Fetch valuation data
+      const valuationUrl = `%{apiUrl}/api/stock/${ticker.toUpperCase()}/valuation`;
+      console.log(`Fetching stock valuation from: ${valuationUrl}`);
+      const valuationResponse = await fetchWithRetry(valuationUrl);
+      const valuationData = await valuationResponse.json();
+      console.log("Valuation data received:", valuationData)
+
       // Update state
       setStockData(data);
       setPriceHistory(historyData);
+      setValuationData(valuationData);
       
       // Update cache
       cacheRef.current[cacheKey] = {
         stockData: data,
         priceHistory: historyData,
+        valuationData: valuationData,
         timestamp: Date.now()
       };
     } catch (error) {
@@ -142,6 +152,7 @@ function App() {
         '3M': null,
         '1Y': null
       });
+      setValuationData(null);
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
@@ -313,12 +324,12 @@ function App() {
           ) : stockData ? (
             <div className="stock-info">
               <div className="info-row">
-                <span className="label">Symbol:</span>
-                <span className="value">{stockData.symbol}</span>
-              </div>
-              <div className="info-row">
                 <span className="label">Company Name:</span>
                 <span className="value">{stockData.companyName}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Ticker:</span>
+                <span className="value">{stockData.symbol}</span>
               </div>
               <div className="info-row">
                 <span className="label">Current Price:</span>
@@ -351,12 +362,36 @@ function App() {
           ) : stockData ? (
             <div className="stock-info">
               <div className="info-row">
-                <span className="label">P/E Ratio:</span>
+                <span className="label">Trailing P/E Ratio:</span>
                 <span className="value">{stockData.peRatio.toFixed(2)}</span>
               </div>
               <div className="info-row">
-                <span className="label">Beta:</span>
-                <span className="value">{stockData.beta.toFixed(2)}</span>
+                <span className="label">Forward P/E Ratio:</span>
+                <span className="value">{stockData.peRatioForward.toFixed(2)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Weighted Avg Cost of Capital:</span>
+                <span className="value">{formatPercent(stockData.wacc)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Industry Growth Rate:</span>
+                <span className="value">{formatPercent(stockData.industryRate)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Reinvestment Rate:</span>
+                <span className="value">{formatPercent(stockData.reinvestmentRate)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">CAGR:</span>
+                <span className="value">{formatPercent(stockData.cagr)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Estimated Growth Rate:</span>
+                <span className="value">{formatPercent(stockData.chosenGrowthRate)}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Final Intrinsic Value:</span>
+                <span className="value">{formatNumber(stockData.intrinsicValue)}</span>
               </div>
             </div>
           ) : (

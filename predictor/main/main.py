@@ -59,6 +59,7 @@ def fetch_stock_data(ticker):
         stock_data = {
             "symbol": info.get('symbol', ''),
             "companyName": info.get('longName', ''),
+            "industry": info.get('industry', ''),
             "currentPrice": info.get('currentPrice', 0),
             "marketCap": info.get('marketCap', 0),
             "open": info.get('regularMarketOpen', 0),
@@ -66,6 +67,7 @@ def fetch_stock_data(ticker):
             "low": info.get('dayLow', 0),
             "volume": info.get('volume', 0),
             "peRatio": info.get('trailingPE', 0) or 0,
+            "peRatioForward": info.get('fowardPE', 0) or 0,
             "dividendYield": info.get('dividendYield', 0) / 100 or 0,
             "beta": info.get('beta', 0) or 0,
             "fiftyTwoWeekHigh": info.get('fiftyTwoWeekHigh', 0)
@@ -125,120 +127,113 @@ def get_stock_history(ticker):
         logger.error(f"Error fetching stock history for {ticker}: {str(e)}")
         return jsonify({"error": f"Failed to fetch stock history: {str(e)}"}), 500
 
-def scrape_country_industry_data():
-    Country = 'United States'
-    Industry = 'Banking'
-    with open('country_industry_data.json', 'r') as file:
-        data = json.load(file)
-        treasury_rate = data['countries'][Country]['10y_treasury_rate']
-        benchmark_etf = data['countries'][Country]['benchmark_etf']
-        benchmark_etf_return = data['countries'][Country]['benchmark_etf_return']
-        industry_rate = data['industries'][Industry]['growth_rate']
-    print(treasury_rate, benchmark_etf, benchmark_etf_return, industry_rate)
-    pass
+@app.route('/api/stock/<ticker>/valuation', methods=['GET'])
+def get_stock_valuation(ticker):
+    logger.info(f"Stock valuation requested for ticker: {ticker}")
 
+    try:
+        stock_financials, fcf_list = filter_stock_financials(ticker)
+        return jsonify(stock_financials)
 
-def filter_stock_summary(stock: dict):
-    keys_map = {
-        'longName': 'Name',
-        'symbol': 'Symbol',
-        'currentPrice': 'Current Price',
-        'currency': 'Currency',
-        'marketCap': 'Market Cap',
-        'volume': 'Volume',
-        'dayHigh': 'Day High',
-        'dayLow': 'Day Low',
-        'trailingPE': 'Trailing PE',
-        'trailingEps': 'Trailing EPS',
-        'fiftyTwoWeekHigh': '52 Week High',
-        'fiftyTwoWeekLow': '52 Week Low',
-        'longBusinessSummary': 'Summary',
-        'beta': 'Beta',
-        'country' : 'Country',
-    }
-    return {value: stock[key] for key, value in keys_map.items() if key in stock}
+    except Exception as e:
+        logger.error(f"Error fetching stock valuation for {ticker}: {str(e)}")
+        return jsonify({"error": f"Failed to fetch stock valuation: {str(e)}"}), 500
 
-def filter_stock_financials(ticker: str, filtered_stock_info: dict):
-    keys_income_statement = {
-        'InterestExpense': 'interest_expense',
-        'TaxProvision' : 'tax_provision',
-        'PretaxIncome': 'pretax_income',
-        'DilutedAverageShares': 'diluted_average_shares',
-        'EBIT': 'ebit'
-    }
+def scrape_country_industry_data(stock_data: dict):
+    try :
+        Country = stock_data['country']
+        Industry = stock_data['industry']
+        with open('country_industry_data.json', 'r') as file:
+            data = json.load(file)
+            result = {
+                'treasury_rate': data['countries'][Country]['10y_treasury_rate'],
+                'benchmark_etf': data['countries'][Country]['benchmark_etf'],
+                'benchmark_etf_return': data['countries'][Country]['benchmark_etf_return'],
+                'industry_rate': data['industries'][Industry]['growth_rate'],
+            }
+        return result
 
-    keys_balance_sheet = {
-        'TotalDebt': 'total_debt',
-        'CashAndCashEquivalents': 'cash_and_cash_equivalents',
-        'InvestedCapital': 'invested_capital'
-    }
+    except Exception as e:
+        logger.error(f"Error scraping country industry data for {stock_data['ticker']}: {str(e)}. Using default values.")
+        
+        # Default values
+        return {
+            'treasury_rate': 0.05,
+            'benchmark_etf': 'SPY',
+            'benchmark_etf_return': 0.05,
+            'industry_rate': 0.05,
+        }
 
-    keys_cash_flow = {
-        'CapitalExpenditure': 'capex',
-        'ChangeInWorkingCapital': 'change_in_working_capital'
-    }
+def filter_stock_financials(ticker: str):
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        income_statement = stock.get_income_stmt(as_dict=True, freq='yearly')
+        balance_sheet = stock.get_balance_sheet(as_dict=True, freq='yearly')
+        cash_flow = stock.get_cashflow(as_dict=True, freq='yearly')
+        country_industry_data = scrape_country_industry_data(info)
 
-    # add in income statement variables
-    income_statement = ticker.get_income_stmt(as_dict=True, freq='yearly')
-    income_statement_key = next(iter(income_statement))
-    print(income_statement[income_statement_key])
-    results = {value: income_statement[income_statement_key][key] for key, value in keys_income_statement.items() if key in income_statement[income_statement_key]}
+        stock_data = {
+            # Relevant information from info
+            "ticker": ticker,
+            "marketCap": info.get('marketCap', 0),
+            "beta": info.get('beta', 0) or 0,
+            "industry": info.get('industry', ''),
+            "country": info.get('country', ''),
 
-    # add in balance_sheet variables
-    balance_sheet = ticker.get_balance_sheet(as_dict=True, freq='yearly')
-    balance_sheet_key = next(iter(balance_sheet))
-    results.update({value: balance_sheet[balance_sheet_key][key] for key, value in keys_balance_sheet.items() if key in balance_sheet[balance_sheet_key]})
+            "interestExpense": income_statement.get('InterestExpense', 0),
+            "taxProvision": income_statement.get('TaxProvision', 0),
+            "pretaxIncome": income_statement.get('PretaxIncome', 0),
+            "dilutedAverageShares": income_statement.get('DilutedAverageShares', 0),
+            "ebit": income_statement.get('EBIT', 0),
 
-    # add in cash_flow variables
-    cash_flow = ticker.get_cashflow(as_dict=True, freq='yearly')
-    cash_flow_key = next(iter(cash_flow))
-    results.update({value: cash_flow[cash_flow_key][key] for key, value in keys_cash_flow.items() if key in cash_flow[cash_flow_key]})
+            # Relevant information from balance_sheet
+            "totalDebt": balance_sheet.get('TotalDebt', 0),
+            "cashAndCashEquivalents": balance_sheet.get('CashAndCashEquivalents', 0),
+            "investedCapital": balance_sheet.get('InvestedCapital', 0),
+            
+            # Relevant information from cash_flow
+            "capex": cash_flow.get('CapitalExpenditure', 0),
+            "changeInWorkingCapital": cash_flow.get('ChangeInWorkingCapital', 0),
 
-    # add in stock info
-    results['market_cap'] = filtered_stock_info['Market Cap']
-    results['beta'] = filtered_stock_info['Beta']
+            # Country and Industry Data
+            "treasury_rate": country_industry_data['treasury_rate'],
+            "benchmark_etf": country_industry_data['benchmark_etf'],
+            "benchmark_etf_return": country_industry_data['benchmark_etf_return'],
+            "industry_rate": country_industry_data['industry_rate'],
+        }
 
-    # perform and add some calculations
-    results['cost_of_equity'] = dcf.calculate_cost_of_equity((4.0/100), results['beta'], (9.5/100)) # rfr = 4, mr = 9.5. for now we fix the Treasury Rate and Market Return, have to make a separate scraper to get these values for the specific country the company is in
-    results['cost_of_debt'] = dcf.calculate_cost_of_debt(results['interest_expense'], results['total_debt'])
-    results['tax_rate'] = dcf.calculate_tax_rate(results['tax_provision'], results['pretax_income'])
-    results['net_debt'] = results['total_debt'] - results['cash_and_cash_equivalents']
+        # Add in calculations
+        stock_data['equityCost'] = dcf.calculate_cost_of_equity((stock_data['treasury_rate']/100), stock_data['beta'], (stock_data['benchmark_etf_return']/100)) # rfr = 4, mr = 9.5. for now we fix the Treasury Rate and Market Return, have to make a separate scraper to get these values for the specific country the company is in
+        stock_data['debtCost'] = dcf.calculate_cost_of_debt(stock_data['interestExpense'], stock_data['totalDebt'])
+        stock_data['taxRate'] = dcf.calculate_tax_rate(stock_data['taxProvision'], stock_data['pretaxIncome'])
+        stock_data['netDebt'] = stock_data['totalDebt'] - stock_data['cashAndCashEquivalents']
 
-    # calculate fcf from cash flow list
-    fcf = {}
-    for timestamp, data in cash_flow.items():
-        free_cash_flow = data.get('FreeCashFlow', None)
-        if free_cash_flow and not pd.isna(free_cash_flow):
-            year = timestamp.year
-            fcf[year] = data['FreeCashFlow']
-    return results, fcf
+        # Calculate fcf from cash flow list
+        fcf = {}
+        for timestamp, data in cash_flow.items():
+            free_cash_flow = data.get('FreeCashFlow', None)
+            if free_cash_flow and not pd.isna(free_cash_flow):
+                year = timestamp.year
+                fcf[year] = data['FreeCashFlow']
 
-def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):#
+        # Calculate intrinsic value
+        intrinsic_value = calculate_intrinsic_value_dcf(stock_data, fcf)
+        stock_data.update(intrinsic_value)
+
+        return stock_data
+    
+    except Exception as e:
+        logger.error(f"Error fetching stock financials for {ticker}: {str(e)}")
+        return None, None
+
+def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):
     market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
 
     # Calculate growth rates from FCF list
     fcf_list = list(fcf_list.values())
     future_fcf_list = dcf.estimate_future_fcf(fcf_list)
 
-    # lets estimate our chosen growth rate
-    chosen_growth_rate = estimate_growth_rate(data_source, fcf_list)
-
-    # Calculate WACC
-    wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
-
-    equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, chosen_growth_rate, net_debt)
-    intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
-    print(chosen_growth_rate)
-    print(wacc)
-    print(intrinsic_value)
-    return intrinsic_value
-
-def estimate_growth_rate(data_source: dict, fcf_list):
-    """
-    Estimates a Growth Rate between the Calculated CAGR, Calculated Reinvestment x ROIC, or Long-Term Industry Growth Rate for the particular company
-
-    First, get all 3 rates. Then 
-    """
     # Load Data
     market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate, net_debt, shares_outstanding = data_source['market_cap'], data_source['total_debt'], data_source['cost_of_equity'], data_source['cost_of_debt'], data_source['tax_rate'], data_source['net_debt'], data_source['diluted_average_shares']
     ebit, invested_capital, capex, change_in_working_capital = data_source['ebit'], data_source['invested_capital'], data_source['capex'], data_source['change_in_working_capital']
@@ -255,36 +250,207 @@ def estimate_growth_rate(data_source: dict, fcf_list):
     # calculate wacc for comparison with growth rates
     wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
 
-    # calculate mean, median and std for testing
-    rates_list = [estimated_cagr, estimated_reinvestment_x_roic, estimated_industry_rate]
-    rates_mean, rates_median, rates_std = np.mean(rates_list), np.median(rates_list), np.std(rates_list)
-    
-    # Filter out extreme outliers
-    filtered_rates_list = [
-        rate for rate in rates_list 
-        if abs(rate - rates_mean) < (2 * rates_std)  # Remove rates that deviate more than 2 std devs
-    ]
-    
-    # Ensure the filtered list isn't empty, and that the rates are smaller than WACC. Otherwise, use a fallback rate that is below WACC (e.g., 3% or WACC - a small buffer)
-    if not filtered_rates_list:
-        fallback_rate = max(wacc - 0.015, 0.03)
-        return fallback_rate
-    
-    # Use median since there is likely variability in growth rates, as it is more robust to outliers
-    estimated_growth_rate = np.median(filtered_rates_list)
-    
-    # If the chosen growth rate is still lower than WACC, adjust WACC (safeguard)
-    if estimated_growth_rate < wacc:
-        estimated_growth_rate = max(estimated_growth_rate, wacc - 0.015)
-    
-    return estimated_growth_rate
+    # lets estimate our chosen growth rate
+    estimated_growth_rate = estimate_growth_rate(data_source, fcf_list)
 
-def scrape_stock_price(ticker: str):
-    # stock_data.history(period="5y")
-    pass
+    # Calculate WACC
+    wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
 
-def scrape_sp500_price(tickers: list):
-    pass
+    # Calculate Intrinsic Value
+    equity_value = dcf.calculate_equity_value(future_fcf_list, wacc, estimated_growth_rate, net_debt)
+    intrinsic_value = dcf.calculate_intrinsic_value(equity_value, shares_outstanding)
+
+    data = {
+        'wacc': wacc,
+        'industryRate': estimated_industry_rate,
+        'reinvestmentRate': estimated_reinvestment_x_roic,
+        'cagr': estimated_cagr,
+        'chosenGrowthRate': estimated_growth_rate,
+        'intrinsicValue': intrinsic_value,
+        'equityValue': equity_value,
+    }
+    
+    return data
+
+def estimate_growth_rate(data_source: dict, fcf_list):
+    """
+    Estimates a Growth Rate between the Calculated CAGR, Calculated Reinvestment x ROIC, 
+    and Long-Term Industry Growth Rate for the particular company.
+    
+    The function uses a weighted approach that considers:
+    1. Historical performance (CAGR)
+    2. Company's reinvestment efficiency (Reinvestment x ROIC)
+    3. Industry growth expectations
+    4. Company's competitive position (beta)
+    
+    Returns a growth rate that is:
+    - Conservative (below WACC)
+    - Realistic (based on multiple factors)
+    - Industry-appropriate
+    """
+    try:
+        # Load Data
+        market_cap = data_source.get('marketCap', 0)
+        total_debt = data_source.get('totalDebt', 0)
+        cost_of_equity = data_source.get('equityCost', 0)
+        cost_of_debt = data_source.get('debtCost', 0)
+        tax_rate = data_source.get('taxRate', 0)
+        beta = data_source.get('beta', 1.0)
+        industry_rate = data_source.get('industry_rate', 0.05)
+        
+        # Calculate WACC for reference
+        wacc = dcf.discount_rate(market_cap, total_debt, cost_of_equity, cost_of_debt, tax_rate)
+        
+        # Calculate historical CAGR
+        fcf_values = list(fcf_list.values())
+        if len(fcf_values) >= 2:
+            estimated_cagr = dcf.calculate_cagr(fcf_values)
+        else:
+            estimated_cagr = industry_rate * 0.8  # Conservative estimate if not enough data
+            
+        # Calculate Reinvestment x ROIC
+        ebit = data_source.get('ebit', 0)
+        invested_capital = data_source.get('investedCapital', 0)
+        capex = data_source.get('capex', 0)
+        change_in_working_capital = data_source.get('changeInWorkingCapital', 0)
+        
+        estimated_reinvestment_x_roic = dcf.calculate_reinvestment_x_roic(
+            ebit, tax_rate, invested_capital, capex, change_in_working_capital
+        )
+        
+        # Calculate weights based on data quality and company characteristics
+        weights = {
+            'cagr': 0.4 if len(fcf_values) >= 3 else 0.2,  # Higher weight if more historical data
+            'reinvestment': 0.3,
+            'industry': 0.3
+        }
+        
+        # Adjust weights based on beta (risk)
+        if beta > 1.5:
+            weights['industry'] *= 0.8  # Reduce industry weight for high-beta companies
+            weights['cagr'] *= 1.2     # Increase historical weight
+        elif beta < 0.8:
+            weights['industry'] *= 1.2  # Increase industry weight for low-beta companies
+            weights['cagr'] *= 0.8     # Reduce historical weight
+            
+        # Calculate weighted growth rate
+        weighted_growth = (
+            weights['cagr'] * estimated_cagr +
+            weights['reinvestment'] * estimated_reinvestment_x_roic +
+            weights['industry'] * industry_rate
+        )
+        
+        # Apply conservative constraints
+        max_growth = min(wacc - 0.01, industry_rate * 1.2)  # Cap at WACC-1% or 120% of industry rate
+        min_growth = max(0.01, industry_rate * 0.5)         # Floor at 1% or 50% of industry rate
+        
+        # Final growth rate with constraints
+        final_growth = min(max(weighted_growth, min_growth), max_growth)
+        
+        logger.info(f"Growth rate estimation for {data_source.get('ticker', 'unknown')}:")
+        logger.info(f"  - CAGR: {estimated_cagr:.2%}")
+        logger.info(f"  - Reinvestment x ROIC: {estimated_reinvestment_x_roic:.2%}")
+        logger.info(f"  - Industry Rate: {industry_rate:.2%}")
+        logger.info(f"  - WACC: {wacc:.2%}")
+        logger.info(f"  - Final Growth Rate: {final_growth:.2%}")
+        
+        return final_growth
+        
+    except Exception as e:
+        logger.error(f"Error in estimate_growth_rate: {str(e)}")
+        # Fallback to conservative estimate
+        return min(wacc - 0.015, 0.03)  # 3% or WACC-1.5%, whichever is lower
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # For testing purposes
+    if os.getenv('FLASK_ENV') == 'development':
+        print("Running in development mode...")
+        print("Available functions to test:")
+        print("1. get_stock_details(ticker)")
+        print("2. get_stock_history(ticker)")
+        print("3. get_stock_valuation(ticker)")
+        print("4. filter_stock_financials(ticker)")
+        print("5. estimate_growth_rate(data_source, fcf_list)")
+        print("\nType 'exit' to quit")
+        
+        while True:
+            try:
+                choice = input("\nEnter function number to test (1-5): ")
+                
+                if choice.lower() == 'exit':
+                    break
+                    
+                if choice not in ['1', '2', '3', '4', '5']:
+                    print("Invalid choice. Please enter a number between 1 and 5.")
+                    continue
+                
+                ticker = input("Enter stock ticker: ").upper()
+                
+                if choice == '1':
+                    # Test get_stock_details
+                    result = fetch_stock_data(ticker)
+                    print("\nStock Details:")
+                    print(json.dumps(result, indent=2))
+                
+                elif choice == '2':
+                    # Test get_stock_history
+                    timeframe_configs = {
+                        '1D': {'period': '1d', 'interval': '30m'},
+                        '1W': {'period': '1wk', 'interval': '1d'},
+                        '1M': {'period': '1mo', 'interval': '1d'},
+                        '3M': {'period': '3mo', 'interval': '1wk'},
+                        '1Y': {'period': '1y', 'interval': '1mo'}
+                    }
+                    
+                    stock = yf.Ticker(ticker)
+                    all_history_data = {}
+                    
+                    for timeframe, config in timeframe_configs.items():
+                        hist = stock.history(period=config['period'], interval=config['interval'])
+                        if not hist.empty:
+                            prices = hist['Close'].tolist()
+                            timestamps = hist.index.strftime('%Y-%m-%d %H:%M:%S').tolist()
+                            all_history_data[timeframe] = {
+                                "prices": prices,
+                                "timestamps": timestamps
+                            }
+                    
+                    print("\nStock History:")
+                    print(json.dumps(all_history_data, indent=2))
+                
+                elif choice == '3':
+                    # Test get_stock_valuation
+                    result = filter_stock_financials(ticker)
+                    print("\nStock Valuation:")
+                    print(json.dumps(result, indent=2))
+                
+                elif choice == '4':
+                    # Test filter_stock_financials
+                    result = filter_stock_financials(ticker)
+                    print("\nStock Financials:")
+                    print(json.dumps(result, indent=2))
+                
+                elif choice == '5':
+                    # Test estimate_growth_rate
+                    stock_data = filter_stock_financials(ticker)
+                    if stock_data:
+                        stock = yf.Ticker(ticker)
+                        cash_flow = stock.get_cashflow(as_dict=True, freq='yearly')
+                        fcf = {}
+                        for timestamp, data in cash_flow.items():
+                            free_cash_flow = data.get('FreeCashFlow', None)
+                            if free_cash_flow and not pd.isna(free_cash_flow):
+                                year = timestamp.year
+                                fcf[year] = data['FreeCashFlow']
+                        
+                        growth_rate = estimate_growth_rate(stock_data, fcf)
+                        print("\nEstimated Growth Rate:")
+                        print(f"{growth_rate:.2%}")
+                
+            except Exception as e:
+                print(f"Error: {str(e)}")
+                continue
+    
+    # For production
+    else:
+        app.run(debug=False)
