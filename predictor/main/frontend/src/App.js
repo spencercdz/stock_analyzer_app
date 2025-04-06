@@ -359,39 +359,39 @@ function App() {
         <Box title="Valuation Summary">
           {isLoading ? (
             <div className="loading-message">Loading valuation data...</div>
-          ) : stockData ? (
+          ) : valuationData ? (
             <div className="stock-info">
               <div className="info-row">
                 <span className="label">Trailing P/E Ratio:</span>
-                <span className="value">{stockData.peRatio.toFixed(2)}</span>
+                <span className="value">{valuationData.peRatio.toFixed(2)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Forward P/E Ratio:</span>
-                <span className="value">{stockData.peRatioForward.toFixed(2)}</span>
+                <span className="value">{valuationData.peRatioForward.toFixed(2)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Weighted Avg Cost of Capital:</span>
-                <span className="value">{formatPercent(stockData.wacc)}</span>
+                <span className="value">{formatPercent(valuationData.wacc)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Industry Growth Rate:</span>
-                <span className="value">{formatPercent(stockData.industryRate)}</span>
+                <span className="value">{formatPercent(valuationData.industryRate)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Reinvestment Rate:</span>
-                <span className="value">{formatPercent(stockData.reinvestmentRate)}</span>
+                <span className="value">{formatPercent(valuationData.reinvestmentRate)}</span>
               </div>
               <div className="info-row">
                 <span className="label">CAGR:</span>
-                <span className="value">{formatPercent(stockData.cagr)}</span>
+                <span className="value">{formatPercent(valuationData.cagr)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Estimated Growth Rate:</span>
-                <span className="value">{formatPercent(stockData.chosenGrowthRate)}</span>
+                <span className="value">{formatPercent(valuationData.chosenGrowthRate)}</span>
               </div>
               <div className="info-row">
                 <span className="label">Final Intrinsic Value:</span>
-                <span className="value">{formatNumber(stockData.intrinsicValue)}</span>
+                <span className="value">{formatNumber(valuationData.intrinsicValue)}</span>
               </div>
             </div>
           ) : (

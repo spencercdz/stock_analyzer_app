@@ -66,8 +66,6 @@ def fetch_stock_data(ticker):
             "high": info.get('dayHigh', 0),
             "low": info.get('dayLow', 0),
             "volume": info.get('volume', 0),
-            "peRatio": info.get('trailingPE', 0) or 0,
-            "peRatioForward": info.get('fowardPE', 0) or 0,
             "dividendYield": info.get('dividendYield', 0) / 100 or 0,
             "beta": info.get('beta', 0) or 0,
             "fiftyTwoWeekHigh": info.get('fiftyTwoWeekHigh', 0)
@@ -180,6 +178,8 @@ def filter_stock_financials(ticker: str):
             "beta": info.get('beta', 0) or 0,
             "industry": info.get('industry', ''),
             "country": info.get('country', ''),
+            "peRatio": info.get('trailingPE', 0) or 0,
+            "peRatioForward": info.get('forwardPE', 0) or 0,
 
             "interestExpense": income_statement.get('InterestExpense', 0),
             "taxProvision": income_statement.get('TaxProvision', 0),
