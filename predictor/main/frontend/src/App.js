@@ -385,7 +385,7 @@ function App() {
                 <span className="value">{formatPercent(valuationData.wacc)}</span>
               </div>
               <div className="info-row">
-                <span className="label">Industry Growth Rate:</span>
+                <span className="label">Estimated Industry Growth Rate:</span>
                 <span className="value">{formatPercent(valuationData.industryRate)}</span>
               </div>
               <div className="info-row">
