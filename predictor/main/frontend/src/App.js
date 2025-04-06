@@ -111,6 +111,10 @@ function App() {
       console.log(`Fetching stock data from: ${stockUrl}`);
       
       const response = await fetchWithRetry(stockUrl);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch stock data');
+      }
       const data = await response.json();
       console.log("Stock data received:", data);
 
@@ -118,6 +122,10 @@ function App() {
       const historyUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/history`;
       console.log(`Fetching price history from: ${historyUrl}`);
       const historyResponse = await fetchWithRetry(historyUrl);
+      if (!historyResponse.ok) {
+        const errorData = await historyResponse.json();
+        throw new Error(errorData.error || 'Failed to fetch price history');
+      }
       const historyData = await historyResponse.json();
       console.log("History data received:", historyData);
 
@@ -125,6 +133,10 @@ function App() {
       const valuationUrl = `${apiUrl}/api/stock/${ticker.toUpperCase()}/valuation`;
       console.log(`Fetching valuation data from: ${valuationUrl}`);
       const valuationResponse = await fetchWithRetry(valuationUrl);
+      if (!valuationResponse.ok) {
+        const errorData = await valuationResponse.json();
+        throw new Error(errorData.error || 'Failed to fetch valuation data');
+      }
       const valuationData = await valuationResponse.json();
       console.log("Valuation data received:", valuationData);
 
@@ -142,9 +154,7 @@ function App() {
       };
     } catch (error) {
       console.error("Error fetching stock data:", error);
-      setError(error.message === 'Failed to fetch data' 
-        ? 'Too many requests. Please wait a moment and try again.'
-        : 'An error occurred while fetching stock data. Please try again.');
+      setError(error.message || 'An error occurred while fetching stock data. Please try again.');
       setStockData(null);
       setPriceHistory({
         '1D': null,
@@ -354,7 +364,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">An error occurred while fetching stock data. Please try again.</div>
+            <div className="placeholder-message">Please enter a ticker to view the ticker information.</div>
           )}
         </Box>
         <Box title="Valuation Summary">
@@ -396,7 +406,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">An error occurred while fetching valuation data. Please try again.</div>
+            <div className="placeholder-message">Please enter a ticker to view the valuation summary.</div>
           )}
         </Box>
         <Box title="Stock Price Chart">
@@ -446,7 +456,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="placeholder-message">An error occurred while fetching price chart. Please try again.</div>
+            <div className="placeholder-message">Please enter a ticker to view the price chart.</div>
           )}
         </Box>
       </GridLayout>

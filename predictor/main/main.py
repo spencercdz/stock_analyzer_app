@@ -31,19 +31,25 @@ def index():
 @app.route('/api/stock/<ticker>', methods=['GET'])
 def get_stock_details(ticker):
     logger.info(f"Stock details requested for ticker: {ticker}")
-    # Check if the data is already in the cache
-    if ticker in cache and (time.time() - cache[ticker]['timestamp']) < 300:  # 5 minutes cache
-        logger.info(f"Returning cached data for {ticker}")
-        return jsonify(cache[ticker]['data'])
+    try:
+        # Check if the data is already in the cache
+        if ticker in cache and (time.time() - cache[ticker]['timestamp']) < 300:  # 5 minutes cache
+            logger.info(f"Returning cached data for {ticker}")
+            return jsonify(cache[ticker]['data'])
 
-    # Fetch data from yfinance
-    stock_data = fetch_stock_data(ticker)
+        # Fetch data from yfinance
+        stock_data = fetch_stock_data(ticker)
 
-    # Error handling
-    if stock_data is None:
-        return jsonify({"error": "Stock data not found"}), 404
+        # Error handling
+        if stock_data is None:
+            logger.error(f"No stock data found for ticker: {ticker}")
+            return jsonify({"error": "Stock data not found"}), 404
 
-    return stock_data
+        return stock_data
+
+    except Exception as e:
+        logger.error(f"Error in get_stock_details for {ticker}: {str(e)}")
+        return jsonify({"error": f"Failed to fetch stock details: {str(e)}"}), 500
 
 def fetch_stock_data(ticker):
     try:
@@ -52,7 +58,7 @@ def fetch_stock_data(ticker):
         
         if not info or 'symbol' not in info:
             logger.error(f"No data found for ticker: {ticker}")
-            return jsonify({"error": "Stock data not found"}), 404
+            return None
         
         # Format data to match frontend expectations
         stock_data = {
@@ -81,7 +87,7 @@ def fetch_stock_data(ticker):
         
     except Exception as e:
         logger.error(f"Error fetching stock data for {ticker}: {str(e)}")
-        return jsonify({"error": f"Failed to fetch stock data: {str(e)}"}), 500
+        return None
 
 @app.route('/api/stock/<ticker>/history', methods=['GET'])
 def get_stock_history(ticker):
@@ -132,14 +138,36 @@ def get_stock_valuation(ticker):
     try:
         stock_financials = filter_stock_financials(ticker)
         if not stock_financials:
+            logger.error(f"No financial data found for ticker: {ticker}")
             return jsonify({"error": "Failed to fetch stock financials"}), 500
+            
+        logger.info(f"Successfully calculated valuation for {ticker}")
         return jsonify(stock_financials)
 
     except Exception as e:
         logger.error(f"Error fetching stock valuation for {ticker}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-def scrape_country_industry_data(stock_data: dict):
+def scrape_country_industry_data(stock_data: dict) -> dict:
+    """
+    Retrieves country and industry-specific data for stock valuation calculations.
+    
+    Args:
+        stock_data (dict): Dictionary containing stock information including country and industry.
+        
+    Returns:
+        dict: Dictionary containing:
+            - treasury_rate (float): 10-year treasury rate for the country
+            - benchmark_etf (str): Benchmark ETF for the country
+            - benchmark_etf_return (float): Expected return of the benchmark ETF
+            - industry_rate (float): Expected growth rate for the industry
+            
+    Note:
+        If the country or industry is not found in the data file, default values are used:
+        - Default country: 'US'
+        - Default industry: 'Technology'
+        - Default rates: 0.05 (5%)
+    """
     try:
         # Get country and industry from the stock data
         country = stock_data.get('country', 'US')  # Default to US if not found
@@ -157,8 +185,6 @@ def scrape_country_industry_data(stock_data: dict):
 
     except Exception as e:
         logger.error(f"Error scraping country industry data: {str(e)}. Using default values.")
-        
-        # Default values
         return {
             'treasury_rate': 0.05,
             'benchmark_etf': 'SPY',
@@ -166,7 +192,23 @@ def scrape_country_industry_data(stock_data: dict):
             'industry_rate': 0.05,
         }
 
-def filter_stock_financials(ticker: str):
+def filter_stock_financials(ticker: str) -> dict:
+    """
+    Retrieves and processes financial data for a given stock ticker.
+    
+    Args:
+        ticker (str): Stock ticker symbol (e.g., 'AAPL').
+        
+    Returns:
+        dict: Dictionary containing processed financial data including:
+            - Basic stock information (ticker, market cap, beta, etc.)
+            - Financial metrics (P/E ratios, debt, cash, etc.)
+            - Calculated values (cost of equity, cost of debt, etc.)
+            - Valuation metrics (WACC, growth rates, intrinsic value)
+            
+    Raises:
+        Exception: If stock information is not available or if there's an error processing the data.
+    """
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
@@ -244,7 +286,28 @@ def filter_stock_financials(ticker: str):
         logger.error(f"Error fetching stock financials for {ticker}: {str(e)}")
         raise Exception(f"Failed to fetch stock financials: {str(e)}")
 
-def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):
+def calculate_intrinsic_value_dcf(data_source: dict, fcf_list: dict) -> dict:
+    """
+    Calculates the intrinsic value of a stock using the Discounted Cash Flow (DCF) method.
+    
+    Args:
+        data_source (dict): Dictionary containing financial data and metrics.
+        fcf_list (dict): Dictionary of historical free cash flows by year.
+        
+    Returns:
+        dict: Dictionary containing valuation metrics:
+            - wacc (float): Weighted Average Cost of Capital
+            - industryRate (float): Industry growth rate
+            - reinvestmentRate (float): Company's reinvestment rate
+            - cagr (float): Compound Annual Growth Rate
+            - chosenGrowthRate (float): Estimated growth rate
+            - intrinsicValue (float): Calculated intrinsic value per share
+            - equityValue (float): Total equity value
+            
+    Note:
+        This function uses multiple valuation approaches and combines them to estimate
+        the intrinsic value of the stock.
+    """
     # Extract data using consistent camelCase keys
     market_cap = data_source.get('marketCap', 0)
     total_debt = data_source.get('totalDebt', 0)
@@ -295,10 +358,28 @@ def calculate_intrinsic_value_dcf(data_source: dict, fcf_list):
     
     return data
 
-def estimate_growth_rate(data_source: dict, fcf_list):
+def estimate_growth_rate(data_source: dict, fcf_list: dict) -> float:
     """
-    Estimates a Growth Rate between the Calculated CAGR, Calculated Reinvestment x ROIC, 
-    and Long-Term Industry Growth Rate for the particular company.
+    Estimates the growth rate for a company using multiple factors.
+    
+    Args:
+        data_source (dict): Dictionary containing company financial data.
+        fcf_list (dict): Dictionary of historical free cash flows by year.
+        
+    Returns:
+        float: Estimated growth rate as a decimal (e.g., 0.05 for 5%).
+        
+    Note:
+        The growth rate is estimated using a weighted approach considering:
+        1. Historical performance (CAGR)
+        2. Company's reinvestment efficiency (Reinvestment x ROIC)
+        3. Industry growth expectations
+        4. Company's competitive position (beta)
+        
+        The final growth rate is constrained to be:
+        - Below the company's WACC
+        - Realistic based on industry standards
+        - Conservative for high-risk companies
     """
     try:
         # Load Data using consistent camelCase keys
