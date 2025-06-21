@@ -1,0 +1,44 @@
+# .github/workflows/keep-render-alive.yml
+name: Keep Render Server Alive
+
+on:
+  schedule:
+    # Ping every 14 minutes (before 15-minute sleep timeout)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Ping Render Service
+      run: |
+        echo "Pinging Render service to keep it alive..."
+        curl -f -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_URL }} || echo "Ping failed"
+        echo "Ping completed at $(date)"
+    
+    - name: Health Check with Retry
+      run: |
+        max_attempts=3
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Health check attempt $attempt/$max_attempts"
+          
+          response=$(curl -s -w "%{http_code}" -o /dev/null ${{ secrets.RENDER_URL }})
+          
+          if [ "$response" = "200" ]; then
+            echo "✅ Server is alive and responding (HTTP $response)"
+            break
+          else
+            echo "⚠️ Server responded with HTTP $response"
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ All attempts failed"
+              exit 1
+            fi
+          fi
+          
+          attempt=$((attempt + 1))
+          sleep 30
+        done
