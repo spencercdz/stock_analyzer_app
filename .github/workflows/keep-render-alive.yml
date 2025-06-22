@@ -3,8 +3,8 @@ name: Keep Render Server Alive
 
 on:
   schedule:
-    # Ping every 10 minutes (before 15-minute sleep timeout)
-    - cron: '*/10 * * * *'
+    # Ping every 5 minutes (before 15-minute sleep timeout)
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
     
     - name: Health Check with Retry
       run: |
-        max_attempts=3
+        max_attempts=5
         attempt=1
         
         while [ $attempt -le $max_attempts ]; do
